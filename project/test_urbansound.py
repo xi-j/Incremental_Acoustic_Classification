@@ -23,7 +23,7 @@ hyperparams = {
     'exposure_size': 300, 
     'exposure_val_size': 50, 
     'initial_K': 4,
-    'batch_size': 4,
+    'batch_size': 16,
     'num_epochs': 30,
     'num_epochs_ex': 10,
     'lr': 5e-6,
@@ -62,8 +62,10 @@ for i in range(len(exposure_generator)):
     exposure_val_list.append(exposure_val)
     exposure_label_list.append(label)
 
-initial_tr_loader = DataLoader(initial_tr, batch_size=4, shuffle=True, num_workers=4)
-initial_val_loader = DataLoader(initial_val, batch_size=4, shuffle=True, num_workers=4)
+initial_tr_loader = DataLoader(initial_tr, batch_size=hyperparams['batch_size'], 
+                               shuffle=True, num_workers=4)
+initial_val_loader = DataLoader(initial_val, batch_size=hyperparams['batch_size'], 
+                                shuffle=True, num_workers=4)
 
 ############################################################################
 device = torch.device('cuda:2')
@@ -75,6 +77,7 @@ if hyperparams['model'] == 'CNN14':
 elif hyperparams['model'] == 'Wav2CLIP':
     model = Wav2CLIPClassifier()
     
+model.to(device)
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam([param for param in model.parameters() if param.requires_grad == True],
                              lr=hyperparams['lr'])
@@ -138,7 +141,7 @@ for i, label in enumerate(exposure_label_list):
         break
         
 new_tr = ReplayExposureBlender(initial_tr, exposure_tr, seen_classes, label)
-new_tr_loader = DataLoader(new_tr, batch_size=4, shuffle=True, num_workers=4)
+new_tr_loader = DataLoader(new_tr, batch_size=hyperparams['batch_size'], shuffle=True, num_workers=4)
            
 model.load_state_dict(
     torch.load(os.path.join('saved_models', 
@@ -192,7 +195,7 @@ for i, label in enumerate(exposure_label_list):
         break
         
 new_tr = ReplayExposureBlender(initial_tr, exposure_tr, seen_classes, label)
-new_tr_loader = DataLoader(new_tr, batch_size=4, shuffle=True, num_workers=4)
+new_tr_loader = DataLoader(new_tr, batch_size=hyperparams['batch_size'], shuffle=True, num_workers=4)
            
 model.load_state_dict(
     torch.load(os.path.join('saved_models', 
