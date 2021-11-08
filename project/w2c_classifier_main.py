@@ -30,15 +30,14 @@ if __name__ == '__main__':
     model.to(device)
 
     mlp_lr = 3e-5
-    encoder_lr = mlp_lr
+    encoder_lr = mlp_lr / 10
 
 
     criterion = nn.CrossEntropyLoss()
 
     if scenario == 'finetune':
-        #optimizer = torch.optim.Adam([{'params': model.mlp.parameters()},
-                                      #{'params': model.wav2clip_encoder.parameters(), 'lr': encoder_lr}], lr=mlp_lr)
-        optimizer = torch.optim.Adam(model.parameters(), lr=mlp_lr)
+        optimizer = torch.optim.Adam([{'params': model.mlp.parameters()},
+                                      {'params': model.wav2clip_encoder.parameters(), 'lr': encoder_lr}], lr=mlp_lr)
     else:
         optimizer = torch.optim.Adam([param for param in model.parameters() if param.requires_grad == True],
                              lr=mlp_lr)

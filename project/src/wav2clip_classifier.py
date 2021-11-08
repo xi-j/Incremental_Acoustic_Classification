@@ -28,10 +28,6 @@ class w2c_classifier(nn.Module):
         if scenario == 'frozen':
             for param in self.wav2clip_encoder.parameters():
                 param.requires_grad = False
-        
-        self.fc1 = nn.Linear(embedding_sz, embedding_sz, bias=True)
-        self.fc2 = nn.Linear(embedding_sz, embedding_sz, bias=True)
-        self.fc3 = nn.Linear(embedding_sz, classes_num, bias=True)
 
         mlp_list = []
         
@@ -51,8 +47,6 @@ class w2c_classifier(nn.Module):
  
     def forward(self, x):
         x = self.wav2clip_encoder(x)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
+        x = self.mlp(x)
         
         return x
