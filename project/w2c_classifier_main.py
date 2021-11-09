@@ -12,75 +12,85 @@ if __name__ == '__main__':
 
     from src.wav2clip_classifier import w2c_classifier
 
+    for eval_folder in range(1,11):
+        print('Eval Folder', eval_folder)
+        train_folders = [1,2,3,4,5,6,7,8,9,10]
+        train_folders.remove(eval_folder)
+        print('Train Folders', train_folders)
+        urban_tr = UrbanSoundDataset('../../Datasets/UrbanSound8K', train_folders, sr=16000, transform=ToTensor())
+        urban_tr_loader = DataLoader(urban_tr, batch_size=32, shuffle=True,num_workers=4)
 
-    urban_tr = UrbanSoundDataset('../../Datasets/UrbanSound8K', [1,2,3,4,5,6,7,8,9], sr=16000, transform=ToTensor())
-    urban_tr_loader = DataLoader(urban_tr, batch_size=32, shuffle=True,num_workers=4)
-
-    urban_eval = UrbanSoundDataset('../../Datasets/UrbanSound8K', [10], sr=16000, transform=ToTensor())
-    urban_eval_loader = DataLoader(urban_eval, batch_size=32, shuffle=False,num_workers=4)
-
-
-    device = torch.device('cuda')
-
-    MODEL_URL = "https://github.com/descriptinc/lyrebird-wav2clip/releases/download/v0.1.0-alpha/Wav2CLIP.pt"
-
-    scenario = 'finetune'
-    ckpt = torch.hub.load_state_dict_from_url(MODEL_URL, map_location=device, progress=True)
-    model =w2c_classifier(ckpt=ckpt, scenario=scenario)
-    model.to(device)
-
-    mlp_lr = 3e-5
-    encoder_lr = mlp_lr / 10
+        urban_eval = UrbanSoundDataset('../../Datasets/UrbanSound8K', [eval_folder], sr=16000, transform=ToTensor())
+        urban_eval_loader = DataLoader(urban_eval, batch_size=32, shuffle=False,num_workers=4)
 
 
-    criterion = nn.CrossEntropyLoss()
+        device = torch.device('cuda')
 
-    if scenario == 'finetune':
-        optimizer = torch.optim.Adam([{'params': model.mlp.parameters()},
-                                      {'params': model.wav2clip_encoder.parameters(), 'lr': encoder_lr}], lr=mlp_lr)
-    else:
-        optimizer = torch.optim.Adam([param for param in model.parameters() if param.requires_grad == True],
-                             lr=mlp_lr)
+        MODEL_URL = "https://github.com/descriptinc/lyrebird-wav2clip/releases/download/v0.1.0-alpha/Wav2CLIP.pt"
+
+        scenario = 'finetune'
+        ckpt = torch.hub.load_state_dict_from_url(MODEL_URL, map_location=device, progress=True)
+        model =w2c_classifier(ckpt=ckpt, scenario=scenario)
+        model.to(device)
+
+        mlp_lr = 3e-5
+        encoder_lr = mlp_lr
 
 
-    loss_list = []
-    loss_counter = 0
+        criterion = nn.CrossEntropyLoss()
 
-    max_acc = 0
+        if scenario == 'finetune':
+            optimizer = torch.optim.Adam([{'params': model.mlp.parameters()},
+                                        {'params': model.wav2clip_encoder.parameters(), 'lr': encoder_lr}], lr=mlp_lr)
+        else:
+            optimizer = torch.optim.Adam([param for param in model.parameters() if param.requires_grad == True],
+                                lr=mlp_lr)
 
-    
-    for epoch in range(10):
-        print(f'Epoch {epoch}')
-        model.train()
-        for x, labels in urban_tr_loader:
-            x, labels = x.to(device), labels.to(device)
-            predicts = model(x)
 
-            loss = criterion(predicts, labels)
+        loss_list = []
+        loss_counter = 0
 
-            loss_list.append(loss.item())
-            loss_counter += 1
-            if loss_counter % 50 == 0:
-                print('Average running loss:', sum(loss_list[-10:]) / 10)
+        max_acc = 0
 
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-        predictions = []
-        truths = []
-
-        model.eval()
-        with torch.no_grad():
-            for x, labels in urban_eval_loader:
+        
+        for epoch in range(10):
+            print(f'Epoch {epoch}')
+            model.train()
+            for x, labels in urban_tr_loader:
                 x, labels = x.to(device), labels.to(device)
-
                 predicts = model(x)
-                predicts = torch.argmax(predicts,1)
 
-                truths.extend(labels.tolist())
-                predictions.extend(predicts.tolist())
+                loss = criterion(predicts, labels)
 
-        acc = sum(np.array(truths)==np.array(predictions))/len(truths)
+                loss_list.append(loss.item())
+                loss_counter += 1
+                if loss_counter % 50 == 0:
+                    print('Average running loss:', sum(loss_list[-10:]) / 10)
 
-        print('Accuracy: ', acc)
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+            predictions = []
+            truths = []
+
+            model.eval()
+            with torch.no_grad():
+                for x, labels in urban_eval_loader:
+                    x, labels = x.to(device), labels.to(device)
+
+                    predicts = model(x)
+                    predicts = torch.argmax(predicts,1)
+
+                    truths.extend(labels.tolist())
+                    predictions.extend(predicts.tolist())
+
+            acc = sum(np.array(truths)==np.array(predictions))/len(truths)
+
+            print('Overrall Accuracy: ', acc)
+
+            for l in range(10):
+                label_truths = truths[truths == l]
+                label_predictions = predictions[truths == l]
+                label_acc = sum(np.array(label_truths)==np.array(label_predictions))/len(label_truths)
+                print('Class{} Accuracy: {}',format(l, label_acc))
