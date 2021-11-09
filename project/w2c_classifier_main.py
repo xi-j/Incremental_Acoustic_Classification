@@ -85,12 +85,15 @@ if __name__ == '__main__':
                     truths.extend(labels.tolist())
                     predictions.extend(predicts.tolist())
 
-            acc = sum(np.array(truths)==np.array(predictions))/len(truths)
+            truths = np.array(truths)
+            predictions = np.array(predictions)
+
+            acc = sum(truths==predictions)/len(truths)
 
             print('Overrall Accuracy: ', acc)
 
             for l in range(10):
                 label_truths = truths[truths == l]
                 label_predictions = predictions[truths == l]
-                label_acc = sum(np.array(label_truths)==np.array(label_predictions))/len(label_truths)
-                print('Class{} Accuracy: {}',format(l, label_acc))
+                label_acc = sum(label_truths==label_predictions)/len(label_truths)
+                print('Class {} Accuracy:'.format(l), label_acc)
