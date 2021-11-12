@@ -10,6 +10,7 @@ import os
 
 from src.CNNs import Cnn14, Cnn6
 from src.classifier import SimpleClassifier, Wav2CLIPClassifier
+from src.wav2clip_classifier import w2c_classifier
 from src.UrbanSound import UrbanSoundDataset, UrbanSoundExposureGenerator
 from src.replay import ReplayExposureBlender, classwise_accuracy
 
@@ -23,7 +24,7 @@ hyperparams = {
     'exposure_size': 300, 
     'exposure_val_size': 50, 
     'initial_K': 4,
-    'batch_size': 16,
+    'batch_size': 4,
     'num_epochs': 30,
     'num_epochs_ex': 10,
     'lr': 5e-6,
@@ -75,12 +76,19 @@ if hyperparams['model'] == 'CNN14':
                   mel_bins=64, fmin=0, fmax=None, classes_num=10).to(device)
 
 elif hyperparams['model'] == 'Wav2CLIP':
-    model = Wav2CLIPClassifier()
+    #model = Wav2CLIPClassifier()
+    MODEL_URL = "https://github.com/descriptinc/lyrebird-wav2clip/releases/download/v0.1.0-alpha/Wav2CLIP.pt"
+    scenario = 'finetune'
+    ckpt = torch.hub.load_state_dict_from_url(MODEL_URL, map_location=device, progress=True)
+    model = w2c_classifier(ckpt=ckpt, scenario=scenario)
     
 model.to(device)
 criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam([param for param in model.parameters() if param.requires_grad == True],
-                             lr=hyperparams['lr'])
+optimizer = torch.optim.Adam([{'params': model.mlp.parameters()},
+                            {'params': model.wav2clip_encoder.parameters(), 'lr': 3e-5}], lr=3e-5)
+
+# optimizer = torch.optim.Adam([param for param in model.parameters() if param.requires_grad == True],
+#                              lr=hyperparams['lr'])
 
 train_loss_list = []
 val_acc_list = []
@@ -158,7 +166,7 @@ for i, label in enumerate(exposure_label_list):
         break
 
 experiment.log_parameters({'next_seen_class': label})
-new_tr = ReplayExposureBlender(initial_tr, exposure_tr, seen_classes, label)
+new_tr = ReplayExposureBlender(initial_tr, exposure_tr, seen_classes, label, downsample=4)
 new_tr_loader = DataLoader(new_tr, batch_size=hyperparams['batch_size'], shuffle=True, num_workers=4)
           
 model.load_state_dict(
@@ -224,7 +232,7 @@ for i, label in enumerate(exposure_label_list):
         break
 
 experiment.log_parameters({'next_unseen_class': label})
-new_tr = ReplayExposureBlender(initial_tr, exposure_tr, seen_classes, label)
+new_tr = ReplayExposureBlender(initial_tr, exposure_tr, seen_classes, label, downsample=4)
 new_tr_loader = DataLoader(new_tr, batch_size=hyperparams['batch_size'], shuffle=True, num_workers=4)
            
 model.load_state_dict(
