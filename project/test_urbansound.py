@@ -11,7 +11,7 @@ import os
 from src.CNNs import Cnn14, Cnn6
 from src.classifier import SimpleClassifier, Wav2CLIPClassifier
 from src.UrbanSound import UrbanSoundDataset, UrbanSoundExposureGenerator
-from src.replay import ReplayExposureBlender
+from src.replay import ReplayExposureBlender, classwise_accuracy
 
 experiment = Experiment(
     api_key="kOAHVqhBnkw2R6FQr6b0uOemJ",
@@ -68,7 +68,7 @@ initial_val_loader = DataLoader(initial_val, batch_size=hyperparams['batch_size'
                                 shuffle=True, num_workers=4)
 
 ############################################################################
-device = torch.device('cuda:2')
+device = torch.device('cuda:3')
 
 if hyperparams['model'] == 'CNN14':
     model = Cnn14(sample_rate=16000, window_size=1024, hop_size=512, 
@@ -84,10 +84,13 @@ optimizer = torch.optim.Adam([param for param in model.parameters() if param.req
 
 train_loss_list = []
 val_acc_list = []
+val_all_acc_list = {}
+for i in range(10):
+    val_all_acc_list[i] = []
+    
 loss_counter = 0
 loss_cycle = 50
-best_acc = -1
-acc = -1
+
 # Stage 1: Pre-train the model with inital classes
 with experiment.train():
     for epoch in tqdm(range(hyperparams['num_epochs']), desc='Epoch'):
@@ -117,11 +120,25 @@ with experiment.train():
                 truths.extend(y.tolist())
                 predictions.extend(yhat.tolist())
   
-        acc = sum(np.array(truths)==np.array(predictions))/len(truths)
-        print()
-        print('Accuracy: ', acc)
+        #acc = sum(np.array(truths)==np.array(predictions))/len(truths)
+        acc, acc_classes = classwise_accuracy(np.array(predictions).flatten(),
+                                              np.array(truths).flatten(),
+                                              10,
+                                              seen_classes
+                                             )
         val_acc_list.append(acc)
         experiment.log_metric("Validation accuracy", acc, step=epoch)
+        print()
+        print('Accuracy: ', acc)
+        
+        for i in range(len(seen_classes)):
+            val_all_acc_list[seen_classes[i]].append(acc_classes[i])
+            experiment.log_metric(f"Validation accuracy class {seen_classes[i]}", acc_classes[i], step=epoch)
+            print(f'Class {seen_classes[i]} accuracy: {acc_classes[i]}')
+
+
+        
+        
         
 last_acc = acc
 torch.save(model.state_dict(), 
@@ -139,10 +156,11 @@ for i, label in enumerate(exposure_label_list):
         exposure_tr = exposure_tr_list[i]
         exposure_val = exposure_val_list[i]
         break
-        
+
+experiment.log_parameters({'next_seen_class': label})
 new_tr = ReplayExposureBlender(initial_tr, exposure_tr, seen_classes, label)
 new_tr_loader = DataLoader(new_tr, batch_size=hyperparams['batch_size'], shuffle=True, num_workers=4)
-           
+          
 model.load_state_dict(
     torch.load(os.path.join('saved_models', 
             hyperparams['model']
@@ -180,11 +198,22 @@ with experiment.train():
                 truths.extend(y.tolist())
                 predictions.extend(yhat.tolist())
   
-        acc = sum(np.array(truths)==np.array(predictions))/len(truths)
+        #acc = sum(np.array(truths)==np.array(predictions))/len(truths)
+        acc, acc_classes = classwise_accuracy(np.array(predictions).flatten(),
+                                              np.array(truths).flatten(),
+                                              10,
+                                              seen_classes
+                                             )
+        val_acc_list.append(acc)
+        experiment.log_metric("Validation accuracy", acc, step=hyperparams['num_epochs']+epoch)
         print()
         print('Accuracy: ', acc)
-        val_acc_list.append(acc)
-        experiment.log_metric("Validation accuracy", acc, step=hyperparams['num_epochs']+epoch)            
+        
+        for i in range(len(seen_classes)):
+            val_all_acc_list[seen_classes[i]].append(acc_classes[i])
+            experiment.log_metric(f"Validation accuracy class {seen_classes[i]}", acc_classes[i], 
+                                  step=hyperparams['num_epochs']+epoch)
+            print(f'Class {seen_classes[i]} accuracy: {acc_classes[i]}')
         
 # Find a class we have never seen, and assign a new label to it
 # Check how is the accuracy
@@ -193,7 +222,8 @@ for i, label in enumerate(exposure_label_list):
         exposure_tr = exposure_tr_list[i]
         exposure_val = exposure_val_list[i]
         break
-        
+
+experiment.log_parameters({'next_unseen_class': label})
 new_tr = ReplayExposureBlender(initial_tr, exposure_tr, seen_classes, label)
 new_tr_loader = DataLoader(new_tr, batch_size=hyperparams['batch_size'], shuffle=True, num_workers=4)
            
@@ -236,8 +266,20 @@ with experiment.train():
                 truths.extend(y.tolist())
                 predictions.extend(yhat.tolist())
   
-        acc = sum(np.array(truths)==np.array(predictions))/len(truths)
+        #acc = sum(np.array(truths)==np.array(predictions))/len(truths)
+        acc, acc_classes = classwise_accuracy(np.array(predictions).flatten(),
+                                              np.array(truths).flatten(),
+                                              10,
+                                              seen_classes
+                                             )
+        val_acc_list.append(acc)
+        experiment.log_metric("Validation accuracy", acc, 
+                              step=hyperparams['num_epochs']+hyperparams['num_epochs_ex']+epoch)
         print()
         print('Accuracy: ', acc)
-        val_acc_list.append(acc)
-        experiment.log_metric("Validation accuracy", acc, step=hyperparams['num_epochs']+hyperparams['num_epochs_ex']+epoch) 
+        
+        for i in range(len(seen_classes)):
+            val_all_acc_list[seen_classes[i]].append(acc_classes[i])
+            experiment.log_metric(f"Validation accuracy class {seen_classes[i]}", acc_classes[i], 
+                                  step=hyperparams['num_epochs']+hyperparams['num_epochs_ex']+epoch)
+            print(f'Class {seen_classes[i]} accuracy: {acc_classes[i]}')
