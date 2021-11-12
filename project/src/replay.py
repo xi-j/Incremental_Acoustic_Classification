@@ -1,5 +1,5 @@
 import torch
-from torch.utils.data import Dataset, ConcatDataset
+from torch.utils.data import Dataset, ConcatDataset, random_split
 import numpy as np
 from tqdm import tqdm
 from sklearn.metrics import confusion_matrix
@@ -28,6 +28,7 @@ class ReplayExposureBlender(Dataset):
             new,
             old_labels,
             new_label,  # This is the truth label
+            downsample=None,
             transform=None,
             target_transform=None,
             transforms=None,
@@ -35,19 +36,23 @@ class ReplayExposureBlender(Dataset):
         super().__init__()
         assert len(old_labels) < 10
         
-        self.old_num = len(old)
-        self.new_num = len(new)
-        
+        if downsample:
+            down_old, _ = random_split(old, [len(old)//downsample, len(old)-len(old)//downsample])
+            self.old_num = len(down_old)
+            self.dataset = ConcatDataset((down_old, new))
+        else:
+            self.old_num = len(old)
+            self.dataset = ConcatDataset((old, new))
+            
+        self.new_num = len(new)       
         self.true_label = new_label
         # Assign a new label to the exposure no matter seen or not
         for i in range(10):
             if i not in old_labels:
                 self.fake_label = i
                 break
-         
-        self.dataset = ConcatDataset((old, new))
-        
-        
+            
+
     def __len__(self):
         return self.old_num + self.new_num
     
