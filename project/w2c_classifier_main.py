@@ -34,7 +34,7 @@ if __name__ == '__main__':
         model.to(device)
 
         mlp_lr = 3e-5
-        encoder_lr = mlp_lr
+        encoder_lr = 5e-5
 
 
         criterion = nn.CrossEntropyLoss()
