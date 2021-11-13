@@ -31,6 +31,9 @@ hyperparams = {
     'model': 'Wav2CLIP'
 }
 
+exposure_tr_size = hyperparams['exposure_size'] - hyperparams['exposure_val_size']
+hyperparams['exposure_tr_size'] = exposure_tr_size
+
 experiment.log_parameters(hyperparams)
 tags = 'UrbanSound', 'Wav2CLIP', 'Initial 4', 'Exposure 1+1', 'seen vs unseen'
 experiment.add_tags(tags)
@@ -144,10 +147,6 @@ with experiment.train():
             experiment.log_metric(f"Validation accuracy class {seen_classes[i]}", acc_classes[i], step=epoch)
             print(f'Class {seen_classes[i]} accuracy: {acc_classes[i]}')
 
-
-        
-        
-        
 last_acc = acc
 torch.save(model.state_dict(), 
     (os.path.join('saved_models', 
@@ -166,7 +165,8 @@ for i, label in enumerate(exposure_label_list):
         break
 
 experiment.log_parameters({'next_seen_class': label})
-new_tr = ReplayExposureBlender(initial_tr, exposure_tr, seen_classes, label, downsample=4)
+new_tr = ReplayExposureBlender(initial_tr, exposure_tr, 
+                               seen_classes, resize=hyperparams['exposure_tr_size'])
 new_tr_loader = DataLoader(new_tr, batch_size=hyperparams['batch_size'], shuffle=True, num_workers=4)
           
 model.load_state_dict(
@@ -232,7 +232,8 @@ for i, label in enumerate(exposure_label_list):
         break
 
 experiment.log_parameters({'next_unseen_class': label})
-new_tr = ReplayExposureBlender(initial_tr, exposure_tr, seen_classes, label, downsample=4)
+new_tr = ReplayExposureBlender(initial_tr, exposure_tr, 
+                               seen_classes, resize=hyperparams['exposure_tr_size'])
 new_tr_loader = DataLoader(new_tr, batch_size=hyperparams['batch_size'], shuffle=True, num_workers=4)
            
 model.load_state_dict(

@@ -200,21 +200,22 @@ class UrbanSoundExposureGenerator(Dataset):
             assert len(initial_classes) == self.initial_K
             self.initial_classes = initial_classes
 
-        files = []
-        labels = []
+        val_files = []
+        train_files = []
+        val_labels = []
+        train_labels = []
         for c in self.initial_classes:
-            files += self.audio_files[c][0:self.exposure_size]
-            labels += [c] * self.exposure_size
+            temp = list(zip(self.audio_files[c][0:self.exposure_size], [c] * self.exposure_size))   
             self.exposure_remain_idx.remove((c, 0))
-          
-        temp = list(zip(files, labels))
-        random.shuffle(temp)
-        files, labels = zip(*temp)
-
-        val_files = files[:self.initial_K*self.exposure_val_size]
-        train_files = files[self.initial_K*self.exposure_val_size:]
-        val_labels = labels[:self.initial_K*self.exposure_val_size]
-        train_labels = labels[self.initial_K*self.exposure_val_size:]
+            
+            random.shuffle(temp)
+            files, labels = zip(*temp)  
+            
+            val_files += files[:self.exposure_val_size]
+            train_files += files[self.exposure_val_size:]
+            val_labels += labels[:self.exposure_val_size]
+            train_labels += labels[self.exposure_val_size:]        
+        
         
         return(
             UrbanSoundExposureGenerator.UrbanSoundInitialClasses(
