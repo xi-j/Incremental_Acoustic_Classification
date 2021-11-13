@@ -21,14 +21,125 @@ def classwise_accuracy(predictions, truths, n_class, labels):
         
     return acc, acc_class
     
+    
+class Replay(Dataset):
+    def __init__(self,
+                initial_tr,
+                initial_classes, 
+                keep_num,  # number of samples kept for each class
+                ):
+        super().__init__()
+        self.num_per_class = keep_num
+        self.audio_all_classes = {}
+        self.mean_all_classes = {}  # Running means
+        self.mean_counters = {}  # Use for running means
+        self.classes = initial_classes.copy()
+        self.num_class = len(self.classes)
+        
+        for label in initial_classes:
+            self.audio_all_classes[label] = []
+            self.mean_counters[label] = 0
+
+        for i in tqdm(range(len(initial_tr)), desc='Replay::__init__: Loading audio data'):
+            audio, label = initial_tr[i]
+            self.audio_all_classes[label].append(audio)
+            
+        for label in self.audio_all_classes:
+            self.audio_all_classes[label] = torch.Tensor(np.stack(self.audio_all_classes[label]))
+            class_mean = torch.mean(self.audio_all_classes[label], dim=0)
+            self.mean_all_classes[label] = class_mean
+            self.mean_counters[label] = len(self.audio_all_classes[label])
+            
+            # Sort audios by L2 distance to the class mean
+            dists = torch.norm(
+                self.audio_all_classes[label] - class_mean, dim=-1
+            )
+            indices = torch.argsort(dists)
+            self.audio_all_classes[label] = self.audio_all_classes[label][indices]
+            
+            # Only keep the top keep_num audios for each class
+            self.audio_all_classes[label] = self.audio_all_classes[label][0:self.num_per_class]
+                   
+    def __len__(self):
+        return self.num_class * self.num_per_class
+    
+    def __getitem__(self, idx):
+        c = self.classes[idx//self.num_per_class]
+        i = idx % self.num_per_class
+        return self.audio_all_classes[c][i], c
+         
+    def update(self, 
+              exposure,  # UrbanSoundExposure object
+              label  # Inferred of a seen class or pseudo label of a unseen class
+              ):
+        
+        if label not in self.classes:
+            print('Insert a new class to the replay memory...')
+            self.classes.append(label)
+            self.num_class += 1
+            self.audio_all_classes[label] = []
+            for i in tqdm(range(len(exposure)), desc='Replay::update: Loading audio data'):
+                audio, _ = exposure[i]
+                self.audio_all_classes[label].append(audio)
+            
+            self.audio_all_classes[label] = torch.Tensor(np.stack(self.audio_all_classes[label]))
+            class_mean = torch.mean(self.audio_all_classes[label], dim=0)
+            self.mean_all_classes[label] = class_mean
+            self.mean_counters[label] = len(self.audio_all_classes[label])
+            
+            # Sort audios by L2 distance to the class mean
+            dists = torch.norm(
+                self.audio_all_classes[label] - class_mean, dim=-1
+            )
+            indices = torch.argsort(dists)
+            self.audio_all_classes[label] = self.audio_all_classes[label][indices]
+            
+            # Only keep the top keep_num audios for each class
+            self.audio_all_classes[label] = self.audio_all_classes[label][0:self.num_per_class] 
+            
+        else:
+            print('Update an existing class in the replay memory...')
+            exposure_audios = []
+            for i in tqdm(range(len(exposure)), desc='Replay::update: Loading audio data'):
+                audio, _ = exposure[i]
+                exposure_audios.append(audio)
+                
+            exposure_audios = torch.Tensor(np.stack(exposure_audios))
+            
+            old_class_count = self.mean_counters[label]
+            old_class_mean = self.mean_all_classes[label]
+            old_class_total = old_class_count * old_class_mean
+            
+            new_class_count = len(exposure_audios)
+            new_class_mean = torch.mean(exposure_audios, dim=0)
+            new_class_total = new_class_count * new_class_mean
+            
+            class_mean = (old_class_total + new_class_total) / (old_class_count + new_class_count)    
+            self.mean_counters[label] = old_class_count + new_class_count
+
+            self.audio_all_classes[label] = torch.cat(
+                                                [self.audio_all_classes[label], exposure_audios],
+                                                dim=0
+                                            )
+            
+            # Sort audios by L2 distance to the class mean
+            dists = torch.norm(
+                self.audio_all_classes[label] - class_mean, dim=-1
+            )
+            indices = torch.argsort(dists)
+            self.audio_all_classes[label] = self.audio_all_classes[label][indices]
+            
+            # Only keep the top keep_num audios for each class
+            self.audio_all_classes[label] = self.audio_all_classes[label][0:self.num_per_class]  
+            
+            
 
 class ReplayExposureBlender(Dataset):
     def __init__(self, 
             old, 
             new,
             old_labels,
-            new_label,  # This is the truth label
-            downsample=None,
+            resize=None,
             transform=None,
             target_transform=None,
             transforms=None,
@@ -36,8 +147,8 @@ class ReplayExposureBlender(Dataset):
         super().__init__()
         assert len(old_labels) < 10
         
-        if downsample:
-            down_old, _ = random_split(old, [len(old)//downsample, len(old)-len(old)//downsample])
+        if resize:
+            down_old, _ = random_split(old, [resize, len(old)-resize])
             self.old_num = len(down_old)
             self.dataset = ConcatDataset((down_old, new))
         else:
@@ -45,22 +156,20 @@ class ReplayExposureBlender(Dataset):
             self.dataset = ConcatDataset((old, new))
             
         self.new_num = len(new)       
-        self.true_label = new_label
         # Assign a new label to the exposure no matter seen or not
         for i in range(10):
             if i not in old_labels:
-                self.fake_label = i
+                self.pseudo_label = i
                 break
             
-
     def __len__(self):
         return self.old_num + self.new_num
     
     def __getitem__(self, idx):
         if idx < self.old_num:
-            return torch.Tensor(self.dataset[idx][0]), self.dataset[idx][1]
+            return self.dataset[idx][0], self.dataset[idx][1]
         else:
-            return torch.Tensor(self.dataset[idx][0]), self.fake_label
+            return self.dataset[idx][0], self.pseudo_label
 
         
 if __name__ == '__main__':
