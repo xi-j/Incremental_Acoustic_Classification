@@ -167,7 +167,7 @@ class ReplayExposureBlender(Dataset):
     
     def __getitem__(self, idx):
         if idx < self.old_num:
-            return self.dataset[idx][0], self.dataset[idx][1]
+            return torch.tensor(self.dataset[idx][0]), self.dataset[idx][1]
         else:
             return self.dataset[idx][0], self.pseudo_label
 
