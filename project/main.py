@@ -29,14 +29,15 @@ if __name__ == '__main__':
         'replay_val': 50,
         'initial_K': 4,
         'batch_size': 4,
-        'num_epochs': 20,
-        'num_epochs_ex': 10,
+        'num_epochs': 2,
+        'num_epochs_ex': 2,
         'lr': 5e-6,
         'model': 'Wav2CLIP'
+        'imb_ratio': 0.5
     }
     hyperparams['exposure_tr_size'] = hyperparams['exposure_size'] - hyperparams['exposure_val_size']
 
-    experiment_name = 'novelty_detector_replay'
+    experiment_name = 'novelty_detector_replay_test'
     experiment.log_parameters(hyperparams)
     tags = 'UrbanSound', 'Wav2CLIP', 'Initial 4', 'Exposure 1+1', 'seen vs unseen', 'Novelty Detector'
     experiment.add_tags(tags)
@@ -81,7 +82,7 @@ if __name__ == '__main__':
                                     shuffle=True, num_workers=4)
 
     ############### DECLARE MODEL #############################################
-    device = torch.device('cuda:2')
+    device = torch.device('cuda:1')
 
     if hyperparams['model'] == 'CNN14':
         model = Cnn14(sample_rate=16000, window_size=1024, hop_size=512, 
@@ -220,7 +221,10 @@ if __name__ == '__main__':
             true_max_drop_class = label
             true_num_drop_class = 1
 
-        new_tr = ReplayExposureBlender(replay_tr, exposure_tr, seen_classes, resize=125)
+        new_tr = ReplayExposureBlender(replay_tr, exposure_tr, 
+                                       seen_classes, 
+                                       resize=int(hyperparams['imb_ratio']*hyperparams['exposure_tr_size'])
+                                      )
         new_tr_loader = DataLoader(new_tr, batch_size=hyperparams['batch_size'], shuffle=True, num_workers=4)
 
         #new_val = ReplayExposureBlender(initial_val, exposure_val, seen_classes)
