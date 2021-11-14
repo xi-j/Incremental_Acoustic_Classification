@@ -283,7 +283,7 @@ if __name__ == '__main__':
 
                 print(f'Class {new_tr.pseudo_label} accuracy: {acc_classes[-1]}')
 
-                if epoch == hyperparams['num_epochs_ex'] - 1:#acc > best_exposure_acc:
+                if acc > best_exposure_acc:
                     best_exposure_acc = acc
                     best_exposure_acc_classes = acc_classes.copy()
                     torch.save(model.state_dict(), 
