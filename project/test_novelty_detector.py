@@ -348,6 +348,8 @@ if __name__ == '__main__':
 
             if novelty_detected == True:
 
+                print('Novel Class, Retrain')
+
                 best_exposure_acc = -9999
                 since_best = 0
 
@@ -427,7 +429,8 @@ if __name__ == '__main__':
                                 scheduler.step()
                                 print('Exposure learning rate reduced to', optimizer.param_groups[0]["lr"])
             else:
-                print('hi')
+                print('Old Class, Retrain')
+                
 
 
 
