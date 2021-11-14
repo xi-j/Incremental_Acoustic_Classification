@@ -3,7 +3,8 @@ if __name__ == '__main__':
     import torch
     import torch.nn as nn
     from torchvision.transforms import ToTensor
-    from torch.utils.data import Dataset, DataLoader
+    from torch.utils.data import Dataset, DataLoader, ConcatDataset
+
     import numpy as np
     from tqdm import tqdm
     import matplotlib.pyplot as plt
@@ -62,11 +63,6 @@ if __name__ == '__main__':
     initial_tr, initial_val, seen_classes = exposure_generator.get_initial_set()
     experiment.log_parameters({'inital_classes': seen_classes})
  
-    for i in range(10):
-        if i not in seen_classes:
-            new_class_label = i
-            break
-
     exposure_tr_list = []
     exposure_val_list = []
     exposure_label_list = []
@@ -285,7 +281,7 @@ if __name__ == '__main__':
                                         step=hyperparams['num_epochs']+epoch)
                     print(f'Class {seen_classes[sc_i]} accuracy: {acc_classes[sc_i]}')
 
-                print(f'Class {new_class_label} accuracy: {acc_classes[-1]}')
+                print(f'Class {new_tr.pseudo_label} accuracy: {acc_classes[-1]}')
 
                 if epoch == hyperparams['num_epochs_ex'] - 1:#acc > best_exposure_acc:
                     best_exposure_acc = acc
@@ -323,3 +319,21 @@ if __name__ == '__main__':
                 print("Novelty:", true_novelty, "  Novelty Detected:", novelty_detected)
                 print("Seen Class:", true_max_drop_class, "  Seen Class Detected:", max_drop_class)
                 print("Drop Class Num :", true_num_drop_class, "  Drop Class Num Detected:", num_drop_class)
+
+             
+                
+            # CASE1: seen, e.g. inferred as 3 
+            # new_tr = ReplayExposureBlender(replay_tr, exposure_tr, seen_classes, label=inferred_label)
+            # new_val = ReplayExposureBlender(replay_val, exposure_val, seen_classes, label=inferred_label)
+            # Train on new_tr and evaluate on new_val, and SAVE
+            # replay_tr.update(exposure_tr, inferred_label); replay_val.update(exposure_val, inferred_label);
+            
+        
+            # CASE2: novel, pseudo_label = new_tr.pseudo_label
+            # new_tr = ReplayExposureBlender(replay_tr, exposure_tr, seen_classes, label=pseudo_label)
+            # new_val = ReplayExposureBlender(replay_val, exposure_val, seen_classes, label=pseudo_label)
+            # seen_classes.append(pseudo_label)
+            # Train on new_tr and evaluate on new_val, and SAVE
+            # replay_tr.update(exposure_tr, pseudo_label); replay_val.update(exposure_val, pseudo_label);
+                        
+            

@@ -139,6 +139,7 @@ class ReplayExposureBlender(Dataset):
             old, 
             new,
             old_labels,
+            label=None,
             resize=None,
             transform=None,
             target_transform=None,
@@ -155,12 +156,17 @@ class ReplayExposureBlender(Dataset):
             self.old_num = len(old)
             self.dataset = ConcatDataset((old, new))
             
-        self.new_num = len(new)       
-        # Assign a new label to the exposure no matter seen or not
-        for i in range(10):
-            if i not in old_labels:
-                self.pseudo_label = i
-                break
+        self.new_num = len(new)   
+        
+        if label != None:
+            self.pseudo_label = label
+                
+        else: 
+            # Assign a new label to the exposure no matter seen or not
+            for i in range(10):
+                if i not in old_labels:
+                    self.pseudo_label = i
+                    break
             
     def __len__(self):
         return self.old_num + self.new_num
@@ -169,8 +175,10 @@ class ReplayExposureBlender(Dataset):
         if idx < self.old_num:
             return torch.tensor(self.dataset[idx][0]), self.dataset[idx][1]
         else:
-            return self.dataset[idx][0], self.pseudo_label
+            return torch.tensor(self.dataset[idx][0]), self.pseudo_label
 
+    def update_label(label):
+        self.pseudo_label = label
         
 if __name__ == '__main__':
     predictions = np.array([9, 2, 5, 3, 4, 0, 7, 2, 9, 3, 4, 2])
