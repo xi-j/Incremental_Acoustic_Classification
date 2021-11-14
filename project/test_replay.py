@@ -75,14 +75,13 @@ for i, label in enumerate(exposure_label_list):
             if i not in seen_classes:
                 pseudo_label = i
                 break
+                
         seen_classes.append(pseudo_label)
-
         replay_tr.update(exposure_tr, pseudo_label)
         replay_val.update(exposure_val, pseudo_label)
 
     else:
-        inferred_label = label
-        
+        inferred_label = label # Find the seen label drops acc > threshold
         replay_tr.update(exposure_tr, inferred_label)
         replay_val.update(exposure_val, inferred_label)
 
