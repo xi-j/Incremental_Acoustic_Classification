@@ -26,14 +26,14 @@ if __name__ == '__main__':
         'exposure_size': 300, 
         'exposure_val_size': 50, 
         'initial_K': 4,
-        'batch_size': 4,
-        'num_epochs': 15,
-        'num_epochs_ex': 10,
+        'batch_size': 15,
+        'num_epochs': 10,
+        'num_epochs_ex': 3,
         'lr': 5e-6,
         'model': 'Wav2CLIP'
     }
 
-    experiment_name = 'novelty_detector_test_9'
+    experiment_name = 'novelty_detector_test_14'
     experiment.log_parameters(hyperparams)
     tags = 'UrbanSound', 'Wav2CLIP', 'Initial 4', 'Exposure 1+1', 'seen vs unseen', 'Novelty Detector'
     experiment.add_tags(tags)
@@ -187,6 +187,9 @@ if __name__ == '__main__':
 
     for i, label in enumerate(exposure_label_list):
 
+        if i == 3:
+            break
+
         os.makedirs(os.path.join('saved_models', experiment_name, 'exposure' + str(i)))
 
         for seen_class in seen_classes:
@@ -214,7 +217,7 @@ if __name__ == '__main__':
             true_max_drop_class = label
             true_num_drop_class = 1
 
-        new_tr = ReplayExposureBlender(initial_tr, exposure_tr, seen_classes, resize=125)
+        new_tr = ReplayExposureBlender(initial_tr, exposure_tr, seen_classes, resize=64)
         new_tr_loader = DataLoader(new_tr, batch_size=hyperparams['batch_size'], shuffle=True, num_workers=4)
 
         new_val = ReplayExposureBlender(initial_val, exposure_val, seen_classes)

@@ -1,6 +1,7 @@
 import torch
-from torch.utils.data import Dataset, ConcatDataset, random_split
+from torch.utils.data import Dataset, ConcatDataset, random_split, Subset
 import numpy as np
+import random
 from tqdm import tqdm
 from sklearn.metrics import confusion_matrix
 import os
@@ -149,7 +150,15 @@ class ReplayExposureBlender(Dataset):
         assert len(old_labels) < 10
         
         if resize:
-            down_old, _ = random_split(old, [resize, len(old)-resize])
+            down_idx = np.array([],dtype=int)
+            class_sz = len(old) // len(old_labels)
+            for i in range(len(old_labels)):
+                class_idx = np.arange(class_sz) + i*class_sz
+                np.random.shuffle(class_idx)
+                down_idx = np.concatenate((down_idx, class_idx[:resize]))
+            
+            down_old = Subset(old, down_idx)
+
             self.old_num = len(down_old)
             self.dataset = ConcatDataset((down_old, new))
         else:
@@ -173,11 +182,13 @@ class ReplayExposureBlender(Dataset):
     
     def __getitem__(self, idx):
         if idx < self.old_num:
+            #return torch.tensor(self.dataset[idx][0]), self.dataset[idx][1]
             return torch.tensor(self.dataset[idx][0]), self.dataset[idx][1]
         else:
+            #return torch.tensor(self.dataset[idx][0]), self.pseudo_label
             return torch.tensor(self.dataset[idx][0]), self.pseudo_label
 
-    def update_label(label):
+    def update_label(self, label):
         self.pseudo_label = label
         
 if __name__ == '__main__':
