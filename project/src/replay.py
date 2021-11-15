@@ -6,6 +6,9 @@ from tqdm import tqdm
 from sklearn.metrics import confusion_matrix
 import os
 
+import warnings
+warnings.filterwarnings('ignore')
+
 def classwise_accuracy(predictions, truths, n_class, labels):
     '''
     @param predictions: N-dim numpy array

@@ -12,10 +12,13 @@ import time
 from src.wav2clip_classifier import w2c_classifier
 from src.CNNs import Cnn14, Cnn6
 from src.UrbanSound import UrbanSoundDataset, UrbanSoundExposureGenerator
-from src.replay import ReplayExposureBlender, classwise_accuracy
+from src.replay import Replay, ReplayExposureBlender, classwise_accuracy
 from src.novelty_detect import make_novelty_detector
 
 if __name__ == '__main__':
+
+    import warnings
+    warnings.filterwarnings('ignore')
     
     # init hyperparameters, comet, ...
     parser = argparse.ArgumentParser()
@@ -27,7 +30,7 @@ if __name__ == '__main__':
 
     hyperparams = cfg['hyperparams']
 
-    experiment_name = cfg['experiment_name'] + str(time.time())
+    experiment_name = cfg['experiment_name'] + str(int(time.time()))
 
     experiment = Experiment(
         api_key = cfg['comet']['api_key'],
@@ -52,7 +55,7 @@ if __name__ == '__main__':
         initial_K=hyperparams['initial_K']
     )
 
-    prev_tr, prev_val, seen_classes = exposure_generator.get_initial_set()
+    initial_tr, initial_val, seen_classes = exposure_generator.get_initial_set()
     experiment.log_parameters({'inital_classes': seen_classes})
 
     exposure_tr_list = []
@@ -65,9 +68,9 @@ if __name__ == '__main__':
         exposure_val_list.append(exposure_val)
         exposure_label_list.append(label)
 
-    initial_tr_loader = DataLoader(prev_tr, batch_size=hyperparams['batch_size'], 
+    initial_tr_loader = DataLoader(initial_tr, batch_size=hyperparams['batch_size'], 
                                 shuffle=True, num_workers=4)
-    initial_val_loader = DataLoader(prev_val, batch_size=hyperparams['batch_size'], 
+    initial_val_loader = DataLoader(initial_val, batch_size=hyperparams['batch_size'], 
                                     shuffle=True, num_workers=4)
     #####################################################################################
     
@@ -189,6 +192,9 @@ if __name__ == '__main__':
 
 
     # train model on exposures incrementally
+    prev_tr = Replay(initial_tr, seen_classes, exposure_train_size)
+    prev_val = Replay(initial_val, seen_classes, hyperparams['exposure_val_size'])
+    
     for i, label in enumerate(exposure_label_list):
         os.makedirs(os.path.join('ckpts', experiment_name, 'exposure' + str(i)))
 
@@ -222,15 +228,27 @@ if __name__ == '__main__':
             true_max_drop_class = label
             true_num_drop_class = 1
             
-        model.load_state_dict(
-            torch.load(os.path.join('ckpts', 
-                    experiment_name,
-                    'pretrain', 
-                    hyperparams['model']
-                    +'_'.join(map(str, seen_classes))
-                    +'_'+str(best_pretrain_acc)+'.pt')
+        if i == 0:
+            model.load_state_dict(
+                torch.load(os.path.join('ckpts', 
+                        experiment_name,
+                        'pretrain', 
+                        hyperparams['model']
+                        +'_'.join(map(str, seen_classes))
+                        +'_'+str(best_pretrain_acc)+'.pt')
+                )
             )
-        )
+
+        else:
+            model.load_state_dict(
+                torch.load(os.path.join('ckpts', 
+                        experiment_name,
+                        'exposure' + str(i - 1), 
+                        hyperparams['model']
+                        +'_'.join(map(str, seen_classes))
+                        +'_'+str(best_prev_acc)+'.pt')
+                )
+            )
         
         optimizer = torch.optim.Adam(model.parameters(), lr=hyperparams['lr'])
         scheduler = torch.optim.lr_scheduler.MultiplicativeLR(optimizer, lr_lambda=lmbda)
@@ -353,7 +371,7 @@ if __name__ == '__main__':
             scheduler = torch.optim.lr_scheduler.MultiplicativeLR(optimizer, lr_lambda=lmbda)
 
             with experiment.train():   
-                for epoch in tqdm(range(hyperparams['num_epochs_ex']), desc='Epoch'):
+                for epoch in tqdm(range(hyperparams['num_epochs']), desc='Epoch'):
                     model.train()
                     for x, y in tqdm(new_tr_loader, desc='Training'):
                         x, y = x.to(device), y.to(device)
@@ -426,6 +444,9 @@ if __name__ == '__main__':
 
                 print('Prev Acc:', best_prev_classwise_acc)
                 print('Retrain Acc:', best_retrain_classwise_acc)
+
+                best_prev_classwise_acc = best_retrain_classwise_acc
+                best_prev_acc = best_retrain_acc
 
                 prev_tr.update(exposure_tr, inferred_label)
                 prev_val.update(exposure_val, inferred_label)
