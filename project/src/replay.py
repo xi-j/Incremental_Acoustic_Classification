@@ -150,7 +150,7 @@ class ReplayExposureBlender(Dataset):
             transforms=None,
     ):
         super().__init__()
-        assert len(old_labels) < 10
+        assert len(old_labels) < 11
         
         if resize:
             down_idx = np.array([],dtype=int)
@@ -175,7 +175,7 @@ class ReplayExposureBlender(Dataset):
                 
         else: 
             # Assign a new label to the exposure no matter seen or not
-            for i in range(10):
+            for i in range(11):
                 if i not in old_labels:
                     self.pseudo_label = i
                     break
