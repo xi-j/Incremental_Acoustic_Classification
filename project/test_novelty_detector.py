@@ -33,7 +33,7 @@ if __name__ == '__main__':
         'model': 'Wav2CLIP'
     }
 
-    experiment_name = 'novelty_detector_test_8'
+    experiment_name = 'novelty_detector_test_9'
     experiment.log_parameters(hyperparams)
     tags = 'UrbanSound', 'Wav2CLIP', 'Initial 4', 'Exposure 1+1', 'seen vs unseen', 'Novelty Detector'
     experiment.add_tags(tags)
@@ -347,90 +347,98 @@ if __name__ == '__main__':
                 print("Drop Class Num :", true_num_drop_class, "  Drop Class Num Detected:", num_drop_class)
 
             if novelty_detected == True:
-
-                print('Novel Class, Retrain')
-
-                best_exposure_acc = -9999
-                since_best = 0
-
-                new_tr = ReplayExposureBlender(initial_tr, exposure_tr, seen_classes)
-                new_tr_loader = DataLoader(new_tr, batch_size=hyperparams['batch_size'], shuffle=True, num_workers=4)
-
-                new_val = ReplayExposureBlender(initial_val, exposure_val, seen_classes)
-                new_val_loader = DataLoader(new_val, batch_size=hyperparams['batch_size'], shuffle=True, num_workers=4)
-
-                model.load_state_dict(
-                    torch.load(os.path.join('saved_models', 
-                            experiment_name,
-                            'pretrain', 
-                            hyperparams['model']
-                            +'_'.join(map(str, seen_classes))
-                            +'_'+str(best_pretrain_acc)+'.pt')
-                    )
-                )
+                print('New Class Retrain')
+                inferred_label = new_class_label
                 
-                optimizer = torch.optim.Adam(model.parameters(), lr=3e-5)
-                scheduler = torch.optim.lr_scheduler.MultiplicativeLR(optimizer, lr_lambda=lmbda)
-
-                with experiment.train():   
-                    for epoch in tqdm(range(hyperparams['num_epochs_ex']), desc='Epoch'):
-                        model.train()
-                        for x, y in tqdm(new_tr_loader, desc='Training'):
-                            x, y = x.to(device), y.to(device)
-                            yhat = model(x)
-                            loss = criterion(yhat, y)
-                            train_loss_list.append(loss.item())
-                            loss_counter += 1
-                            if loss_counter % loss_cycle == 0:
-                                print()
-                                print('Average running loss:', sum(train_loss_list[-loss_cycle:]) / loss_cycle)
-
-                            optimizer.zero_grad()
-                            loss.backward()
-                            optimizer.step()
-
-                        predictions = []
-                        truths = []
-                        model.eval()
-                        with torch.no_grad():
-                            for x, y in tqdm(new_val_loader, desc='Validating'):
-                                x, y = x.to(device), y.to(device)
-                                yhat = torch.argmax(model(x), 1)
-                                truths.extend(y.tolist())
-                                predictions.extend(yhat.tolist())
-                
-                        #acc = sum(np.array(truths)==np.array(predictions))/len(truths)
-                        acc, acc_classes = classwise_accuracy(np.array(predictions).flatten(),
-                                                            np.array(truths).flatten(),
-                                                            10,
-                                                            seen_classes + [new_class_label]
-                                                            )
-
-                        #experiment.log_metric(f"Validation accuracy class {new_class_label} ex {i} label {label}", acc_classes[-1], step=epoch)                    
-                        #experiment.log_metric(f"Validation accuracy ex {i} label {label}", acc, step=epoch)
-                        print()
-                        print('Accuracy: ', acc)
-                        
-                        for sc_i in range(len(seen_classes)):
-                            experiment.log_metric(f"Validation accuracy class {seen_classes[sc_i]} ex {i} label {label}", acc_classes[sc_i], 
-                                                step=hyperparams['num_epochs']+epoch)
-                            print(f'Class {seen_classes[sc_i]} accuracy: {acc_classes[sc_i]}')
-
-                        print(f'Class {new_class_label} accuracy: {acc_classes[-1]}')
-
-                        if acc > best_exposure_acc:
-                            best_exposure_acc = acc
-                            
-
-                        else:
-                            since_best += 1
-                            if since_best == 2:
-                                since_best = 0
-                                scheduler.step()
-                                print('Exposure learning rate reduced to', optimizer.param_groups[0]["lr"])
             else:
-                print('Old Class, Retrain')
-                
+                print('Old Class Retrain')
+                inferred_label = max_drop_class
+            
+            new_tr = ReplayExposureBlender(initial_tr, exposure_tr, seen_classes, label=inferred_label)
+            new_val = ReplayExposureBlender(initial_val, exposure_val, seen_classes, label=inferred_label)
+
+            new_tr_loader = DataLoader(new_tr, batch_size=hyperparams['batch_size'], shuffle=True, num_workers=4)
+            new_val_loader = DataLoader(new_val, batch_size=hyperparams['batch_size'], shuffle=True, num_workers=4)
+
+            best_exposure_acc = -9999
+            since_best = 0
+
+            model.load_state_dict(
+                torch.load(os.path.join('saved_models', 
+                        experiment_name,
+                        'pretrain', 
+                        hyperparams['model']
+                        +'_'.join(map(str, seen_classes))
+                        +'_'+str(best_pretrain_acc)+'.pt')
+                )
+            )
+            
+            optimizer = torch.optim.Adam(model.parameters(), lr=3e-5)
+            scheduler = torch.optim.lr_scheduler.MultiplicativeLR(optimizer, lr_lambda=lmbda)
+
+            with experiment.train():   
+                for epoch in tqdm(range(hyperparams['num_epochs_ex']), desc='Epoch'):
+                    model.train()
+                    for x, y in tqdm(new_tr_loader, desc='Training'):
+                        x, y = x.to(device), y.to(device)
+                        yhat = model(x)
+                        loss = criterion(yhat, y)
+                        train_loss_list.append(loss.item())
+                        loss_counter += 1
+                        if loss_counter % loss_cycle == 0:
+                            print()
+                            print('Average running loss:', sum(train_loss_list[-loss_cycle:]) / loss_cycle)
+
+                        optimizer.zero_grad()
+                        loss.backward()
+                        optimizer.step()
+
+                    predictions = []
+                    truths = []
+                    model.eval()
+                    with torch.no_grad():
+                        for x, y in tqdm(new_val_loader, desc='Validating'):
+                            x, y = x.to(device), y.to(device)
+                            yhat = torch.argmax(model(x), 1)
+                            truths.extend(y.tolist())
+                            predictions.extend(yhat.tolist())
+            
+                    #acc = sum(np.array(truths)==np.array(predictions))/len(truths
+                    if inferred_label in seen_classes:
+                        combined_classes = seen_classes
+                    else:
+                        combined_classes = seen_classes + [inferred_label]
+
+                    acc, acc_classes = classwise_accuracy(np.array(predictions).flatten(),
+                                                        np.array(truths).flatten(),
+                                                        10,
+                                                        combined_classes
+                                                        )
+
+                    #experiment.log_metric(f"Validation accuracy class {new_class_label} ex {i} label {label}", acc_classes[-1], step=epoch)                    
+                    #experiment.log_metric(f"Validation accuracy ex {i} label {label}", acc, step=epoch)
+                    print()
+                    print('Accuracy: ', acc)
+                    
+                    for sc_i in range(len(seen_classes)):
+                        #experiment.log_metric(f"Validation accuracy class {seen_classes[sc_i]} ex {i} label {label}", acc_classes[sc_i], 
+                                            #step=hyperparams['num_epochs']+epoch)
+                        print(f'Class {seen_classes[sc_i]} accuracy: {acc_classes[sc_i]}')
+
+                    print(f'Class {new_class_label} accuracy: {acc_classes[-1]}')
+
+                    if acc > best_exposure_acc:
+                        best_exposure_acc = acc
+
+                    else:
+                        since_best += 1
+                        if since_best == 2:
+                            since_best = 0
+                            scheduler.step()
+                            print('Exposure learning rate reduced to', optimizer.param_groups[0]["lr"])
+
+
+
 
 
 
