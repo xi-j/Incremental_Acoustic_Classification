@@ -94,6 +94,7 @@ if __name__ == '__main__':
     lmbda = lambda epoch: hyperparams['reduce_lr_factor']
     exposure_train_size = hyperparams['exposure_size'] - hyperparams['exposure_val_size']
     loss_cycle = 100
+    true_seen_classes = seen_classes
     #####################################################################################
 
 
@@ -219,13 +220,13 @@ if __name__ == '__main__':
         new_val = ReplayExposureBlender(prev_val, exposure_val, seen_classes)
         new_val_loader = DataLoader(new_val, batch_size=hyperparams['batch_size'], shuffle=True, num_workers=4)
 
-        true_novelty = label not in seen_classes
+        true_novelty = label not in true_seen_classes
 
         if true_novelty == True:
             true_max_drop_class = -1
             true_num_drop_class = 0
         else:
-            true_max_drop_class = label
+            true_max_drop_class = seen_classes[true_seen_classes.index(label)]
             true_num_drop_class = 1
             
         if i == 0:
@@ -400,8 +401,10 @@ if __name__ == '__main__':
                     #acc = sum(np.array(truths)==np.array(predictions))/len(truths
                     if inferred_label in seen_classes:
                         combined_classes = seen_classes
+                        true_seen_classes = seen_classes
                     else:
                         combined_classes = seen_classes + [inferred_label]
+                        true_seen_classes = seen_classes + [label]
 
                     acc, classwise_acc = classwise_accuracy(np.array(predictions).flatten(),
                                                         np.array(truths).flatten(),
