@@ -40,9 +40,8 @@ if __name__ == '__main__':
     model.to(device)
 
     model.load_state_dict(
-        torch.load('ckpts/incremental_train_1637024110/exposure11/Wav2CLIP6_5_4_9_0_1_2_3_7_8_0.948.pt')
+        torch.load('ckpts/incremental_train_1637039837/exposure20/Wav2CLIP4_0_8_3_1_2_5_6_7_9_0.952.pt')
         )
-
 
     truths = []
     predictions = []
@@ -53,6 +52,7 @@ if __name__ == '__main__':
             x, labels = x.to(device), labels.to(device)
 
             predicts = model(x)
+            print(predicts.shape)
             predicts = torch.argmax(predicts,1)
 
             truths.extend(labels.tolist())
@@ -62,12 +62,14 @@ if __name__ == '__main__':
     predictions = np.array(predictions)
 
     # 3 - 0,8 - 3, 9 - 6, 7 - 7, 0 - 8, 6 - 9
+    """
     mapping = {0:3, 3:8, 6:9, 7:7, 8:0, 9:6}
     for i in range(len(predictions)):
         if predictions[i] in [2,4,1,5]:
             continue
         else:
             predictions[i] = mapping[predictions[i]]
+    """
 
     acc = sum(truths==predictions)/len(truths)
 
@@ -79,7 +81,7 @@ if __name__ == '__main__':
         label_acc = sum(label_truths==label_predictions)/len(label_truths)
         print('Class {} Accuracy:'.format(l), label_acc)
 
-    matrix = np.array(confusion_matrix(truths, predictions, labels=range(10)))
+    matrix = np.array(confusion_matrix(truths, predictions, labels=range(11)))
 
     print(matrix)
     print(np.sum(matrix, 1))

@@ -124,9 +124,9 @@ if __name__ == '__main__':
                 loss = criterion(yhat, y)
                 train_loss_list.append(loss.item())
                 loss_counter += 1
-                if loss_counter % loss_cycle == 0:
-                    print()
-                    print('Average running loss:', sum(train_loss_list[-loss_cycle:]) / loss_cycle)
+                #if loss_counter % loss_cycle == 0:
+                    #print()
+                    #print('Average running loss:', sum(train_loss_list[-loss_cycle:]) / loss_cycle)
 
                 optimizer.zero_grad()
                 loss.backward()
@@ -259,9 +259,9 @@ if __name__ == '__main__':
                     loss = criterion(yhat, y)
                     train_loss_list.append(loss.item())
                     loss_counter += 1
-                    if loss_counter % loss_cycle == 0:
-                        print()
-                        print('Average running loss:', sum(train_loss_list[-loss_cycle:]) / loss_cycle)
+                    #if loss_counter % loss_cycle == 0:
+                        #print()
+                        #print('Average running loss:', sum(train_loss_list[-loss_cycle:]) / loss_cycle)
 
                     optimizer.zero_grad()
                     loss.backward()
@@ -376,9 +376,9 @@ if __name__ == '__main__':
                         loss = criterion(yhat, y)
                         train_loss_list.append(loss.item())
                         loss_counter += 1
-                        if loss_counter % loss_cycle == 0:
-                            print()
-                            print('Average running loss:', sum(train_loss_list[-loss_cycle:]) / loss_cycle)
+                        #if loss_counter % loss_cycle == 0:
+                            #print()
+                            #print('Average running loss:', sum(train_loss_list[-loss_cycle:]) / loss_cycle)
 
                         optimizer.zero_grad()
                         loss.backward()
