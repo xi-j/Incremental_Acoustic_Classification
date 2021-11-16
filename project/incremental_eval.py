@@ -40,7 +40,7 @@ if __name__ == '__main__':
     model.to(device)
 
     model.load_state_dict(
-        torch.load('ckpts/incremental_train1637010564/exposure10/Wav2CLIP2_4_1_5_0_3_6_7_8_9_0.958.pt')
+        torch.load('ckpts/incremental_train_1637024110/exposure11/Wav2CLIP6_5_4_9_0_1_2_3_7_8_0.948.pt')
         )
 
 

@@ -13,7 +13,7 @@ def init_layer(layer):
             layer.bias.data.fill_(0.)
 
 class w2c_classifier(nn.Module):
-    def __init__(self, ckpt, scenario='frozen', num_layers=3, embedding_sz=512, classes_num=10):
+    def __init__(self, ckpt, scenario='frozen', num_layers=3, embedding_sz=512, classes_num=11):
         
         super(w2c_classifier, self).__init__() 
 
