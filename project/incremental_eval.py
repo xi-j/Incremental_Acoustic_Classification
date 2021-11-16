@@ -1,22 +1,37 @@
-from src.UrbanSound import UrbanSoundDataset
+import torch
+import torch.nn as nn
+from torchvision.transforms import ToTensor
+from torch.utils.data import Dataset, DataLoader
+import numpy as np
+from tqdm import tqdm
+import os
+import argparse
+from sklearn.metrics import confusion_matrix
+
 from src.wav2clip_classifier import w2c_classifier
+from src.CNNs import Cnn14, Cnn6
+from src.UrbanSound import UrbanSoundDataset, UrbanSoundExposureGenerator
+from src.replay import Replay, ReplayExposureBlender, classwise_accuracy
+from src.novelty_detect import make_novelty_detector
 
 if __name__ == '__main__':
-    import torch
-    import torch.nn as nn
-    from torchvision.transforms import ToTensor
-    from torch.utils.data import Dataset, DataLoader
-    import numpy as np
-    import matplotlib.pyplot as plt
-    import os
-    from sklearn.metrics import confusion_matrix
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--cfg", default="test_config")
+    args = vars(parser.parse_args())
+    
+    from configs import *
+    cfg = globals()[args['cfg']]()
 
-    urban_eval = UrbanSoundDataset('../../Datasets/UrbanSound8K', [10], sr=16000, transform=ToTensor())
+    hyperparams = cfg['hyperparams']
+
+    experiment_name = cfg['experiment_name']
+    
+    urban_eval = UrbanSoundDataset(cfg['dataset_path'], hyperparams['eval_folder'], sr=hyperparams['sr'], transform=ToTensor())
     urban_eval_loader = DataLoader(urban_eval, batch_size=8, shuffle=False,num_workers=4)
 
-
-    device = torch.device('cuda')
-
+    device = hyperparams['device']
+    
     MODEL_URL = "https://github.com/descriptinc/lyrebird-wav2clip/releases/download/v0.1.0-alpha/Wav2CLIP.pt"
 
     scenario = 'finetune'
