@@ -7,7 +7,6 @@ import numpy as np
 from tqdm import tqdm
 import os
 import argparse
-import time
 
 from src.wav2clip_classifier import w2c_classifier
 from src.CNNs import Cnn14, Cnn6
@@ -16,9 +15,6 @@ from src.replay import Replay, ReplayExposureBlender, classwise_accuracy
 from src.novelty_detect import make_novelty_detector
 
 if __name__ == '__main__':
-
-    import warnings
-    warnings.filterwarnings('ignore')
     
     # init hyperparameters, comet, ...
     parser = argparse.ArgumentParser()
@@ -30,7 +26,7 @@ if __name__ == '__main__':
 
     hyperparams = cfg['hyperparams']
 
-    experiment_name = cfg['experiment_name'] + str(int(time.time()))
+    experiment_name = cfg['experiment_name']
 
     experiment = Experiment(
         api_key = cfg['comet']['api_key'],
@@ -401,7 +397,6 @@ if __name__ == '__main__':
                     #acc = sum(np.array(truths)==np.array(predictions))/len(truths
                     if inferred_label in seen_classes:
                         combined_classes = seen_classes
-                        true_seen_classes = seen_classes
                     else:
                         combined_classes = seen_classes + [inferred_label]
                         true_seen_classes = seen_classes + [label]
@@ -455,6 +450,8 @@ if __name__ == '__main__':
                 prev_val.update(exposure_val, inferred_label)
 
                 seen_classes = combined_classes
+
+    print('True labels:', true_seen_classes)
                 
 
 

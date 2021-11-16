@@ -1,3 +1,5 @@
+import time
+
 def test_config():
     cfg = {
         'experiment_name' : 'test_config',
@@ -36,8 +38,10 @@ def test_config():
     return cfg
 
 def incremental_train():
+    experiment_time = int(time.time())
+
     cfg = {
-        'experiment_name' : 'incremental_train',
+        'experiment_name' : 'incremental_train_' + str(experiment_time),
         'dataset_path' : '../../Datasets/UrbanSound8K',
 
         'comet' : {
