@@ -90,7 +90,7 @@ if __name__ == '__main__':
     lmbda = lambda epoch: hyperparams['reduce_lr_factor']
     exposure_train_size = hyperparams['exposure_size'] - hyperparams['exposure_val_size']
     loss_cycle = 100
-    true_seen_classes = seen_classes
+    true_seen_classes = seen_classes.copy()
     #####################################################################################
 
 
@@ -144,7 +144,7 @@ if __name__ == '__main__':
     
             acc, classwise_acc = classwise_accuracy(np.array(predictions).flatten(),
                                                 np.array(truths).flatten(),
-                                                10,
+                                                11,
                                                 seen_classes
                                                 )
             val_acc_list.append(acc)
@@ -157,6 +157,8 @@ if __name__ == '__main__':
                 print(f'Class {seen_classes[i]} accuracy: {classwise_acc[i]}')
 
             if acc > best_pretrain_acc:
+                since_best = 0
+                since_reduce = 0
                 best_pretrain_acc = acc
                 best_pretrain_classwise_acc = classwise_acc
                 torch.save(model.state_dict(), 
@@ -191,6 +193,13 @@ if __name__ == '__main__':
     # train model on exposures incrementally
     prev_tr = Replay(initial_tr, seen_classes, exposure_train_size)
     prev_val = Replay(initial_val, seen_classes, hyperparams['exposure_val_size'])
+
+    exposure_labels = []
+    
+    for i, label in enumerate(exposure_label_list):
+        exposure_labels.append(label)
+
+    print('Exposure labels:', exposure_labels)
     
     for i, label in enumerate(exposure_label_list):
         os.makedirs(os.path.join('ckpts', experiment_name, 'exposure' + str(i)))
@@ -280,7 +289,7 @@ if __name__ == '__main__':
                 #acc = sum(np.array(truths)==np.array(predictions))/len(truths)
                 acc, classwise_acc = classwise_accuracy(np.array(predictions).flatten(),
                                                     np.array(truths).flatten(),
-                                                    10,
+                                                    11,
                                                     seen_classes + [new_tr.pseudo_label]
                                                     )
 
@@ -293,6 +302,8 @@ if __name__ == '__main__':
                 print(f'Class {new_tr.pseudo_label} accuracy: {classwise_acc[-1]}')
 
                 if acc > best_exposure_acc:
+                    since_best = 0
+                    since_reduce = 0
                     best_exposure_acc = acc
                     best_exposure_classwise_acc = classwise_acc[:-1]
 
@@ -395,16 +406,14 @@ if __name__ == '__main__':
                             predictions.extend(yhat.tolist())
             
                     #acc = sum(np.array(truths)==np.array(predictions))/len(truths
-                    if inferred_label in seen_classes:
-                        combined_classes = seen_classes
-                    else:
-                        combined_classes = seen_classes + [inferred_label]
-                        true_seen_classes = seen_classes + [label]
+                    if inferred_label not in seen_classes:
+                        seen_classes = seen_classes + [inferred_label]
+                        true_seen_classes = true_seen_classes + [label]
 
                     acc, classwise_acc = classwise_accuracy(np.array(predictions).flatten(),
                                                         np.array(truths).flatten(),
-                                                        10,
-                                                        combined_classes
+                                                        11,
+                                                        seen_classes
                                                         )
 
                     print()
@@ -413,10 +422,10 @@ if __name__ == '__main__':
                     for sc_i in range(len(seen_classes)):
                         print(f'Class {seen_classes[sc_i]} accuracy: {classwise_acc[sc_i]}')
 
-                    if inferred_label not in seen_classes:
-                        print(f'Class {inferred_label} accuracy: {classwise_acc[-1]}')
 
                     if acc > best_retrain_acc:
+                        since_best = 0
+                        since_reduce = 0
                         best_retrain_acc = acc
                         best_retrain_classwise_acc = classwise_acc
                         torch.save(model.state_dict(), 
@@ -424,7 +433,7 @@ if __name__ == '__main__':
                             experiment_name, 
                             'exposure' + str(i), 
                             hyperparams['model']
-                            +'_'.join(map(str, combined_classes))
+                            +'_'.join(map(str, seen_classes))
                             +'_'+str(best_retrain_acc))+'.pt')
                         )
 
@@ -449,9 +458,8 @@ if __name__ == '__main__':
                 prev_tr.update(exposure_tr, inferred_label)
                 prev_val.update(exposure_val, inferred_label)
 
-                seen_classes = combined_classes
-
     print('True labels:', true_seen_classes)
+    experiment.log_parameters({'True Seen Classes': true_seen_classes})
                 
 
 
