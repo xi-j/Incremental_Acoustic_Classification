@@ -56,7 +56,8 @@ class Replay(Dataset):
             self.audio_all_classes[label] = torch.Tensor(np.stack(self.audio_all_classes[label])).to(self.device)
             
             if self.model != None:
-                audio_encoded = self.model.encode(self.audio_all_classes[label])
+                with torch.no_grad():
+                    audio_encoded = self.model.encode(self.audio_all_classes[label])
             else:
                 audio_encoded = self.audio_all_classes[label]
                             
@@ -97,15 +98,17 @@ class Replay(Dataset):
                 self.audio_all_classes[label].append(audio)
             
             self.audio_all_classes[label] = torch.Tensor(np.stack(self.audio_all_classes[label])).to(self.device)
+            # self.mean_counters[label] = len(self.audio_all_classes[label])
             
             if self.model != None:
-                audio_encoded = self.model.encode(self.audio_all_classes[label])
+                with torch.no_grad():
+                    audio_encoded = self.model.encode(self.audio_all_classes[label])
             else:
                 audio_encoded = self.audio_all_classes[label]
             
             class_mean = torch.mean(audio_encoded, dim=0)
             self.mean_all_classes[label] = class_mean
-            # self.mean_counters[label] = len(audio_encoded)
+            
             
             # Sort audios by L2 distance to the class mean
             dists = torch.norm(
@@ -143,7 +146,8 @@ class Replay(Dataset):
                                             )
             
             if self.model != None:
-                audio_encoded = self.model.encode(self.audio_all_classes[label])
+                with torch.no_grad():
+                    audio_encoded = self.model.encode(self.audio_all_classes[label])
             else:
                 audio_encoded = self.audio_all_classes[label]
             
