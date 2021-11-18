@@ -304,8 +304,9 @@ if __name__ == '__main__':
                 if acc > best_exposure_acc:
                     since_best = 0
                     since_reduce = 0
-                    best_exposure_acc = acc
-                    best_exposure_classwise_acc = classwise_acc[:-1]
+                    if epoch >= (hyperparams['num_epochs_ex'] // 2) - 1:
+                        best_exposure_acc = acc
+                        best_exposure_classwise_acc = classwise_acc[:-1]
 
                 else:
                     since_reduce += 1
