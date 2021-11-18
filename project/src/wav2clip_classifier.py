@@ -35,9 +35,8 @@ class w2c_classifier(nn.Module):
             mlp_list.extend([nn.Linear(embedding_sz, embedding_sz, bias=True), nn.ReLU()])
 
         mlp_list.extend([nn.Linear(embedding_sz, classes_num, bias=True)])
-
+        
         self.mlp = nn.Sequential(*mlp_list)
-
         self.init_weight()
 
     def init_weight(self):
@@ -50,3 +49,6 @@ class w2c_classifier(nn.Module):
         x = self.mlp(x)
         
         return x
+    
+    def encode(self, x):
+        return self.wav2clip_encoder(x)

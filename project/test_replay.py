@@ -15,18 +15,19 @@ from src.replay import Replay, ReplayExposureBlender, classwise_accuracy
 
 hyperparams = {
     'sr': 16000,
-    'exposure_size': 300,
-    'exposure_val_size': 50, 
+    'exposure_size': 20, #300,
+    'exposure_val_size': 10, #50, 
     'initial_K': 4,
     'batch_size': 4,
     'num_epochs': 30,
     'num_epochs_ex': 10,
-    'replay_tr': 50,
-    'replay_val': 20,
+    'replay_tr': 10, #50,
+    'replay_val': 5, #20,
     'lr': 5e-6,
     'model': 'Wav2CLIP'
 }
 hyperparams['exposure_tr_size'] = hyperparams['exposure_size'] - hyperparams['exposure_val_size']
+
 
 exposure_generator = UrbanSoundExposureGenerator(
     'UrbanSound8K', 
@@ -37,16 +38,24 @@ exposure_generator = UrbanSoundExposureGenerator(
     initial_K=hyperparams['initial_K']
 )
 
-# Intitial Training set
+# Initialize Training set
 initial_tr, initial_val, seen_classes = exposure_generator.get_initial_set()
 
 print('Initial seen classes: ', seen_classes)
 print('Number of samples in initial_tr: ', len(initial_tr))
 print('Number of samples in initial_val: ', len(initial_val))
 
-# Initial Replay
-replay_tr = Replay(initial_tr, seen_classes, hyperparams['replay_tr'])
-replay_val = Replay(initial_val, seen_classes, hyperparams['replay_val'])
+# Initialize classifier
+device = torch.device('cuda:3')
+MODEL_URL = "https://github.com/descriptinc/lyrebird-wav2clip/releases/download/v0.1.0-alpha/Wav2CLIP.pt"
+scenario = 'finetune'
+ckpt = torch.hub.load_state_dict_from_url(MODEL_URL, map_location=device, progress=True)
+model = w2c_classifier(ckpt=ckpt, scenario=scenario)
+model.to(device)
+
+# Initialize Replay
+replay_tr = Replay(initial_tr, seen_classes, hyperparams['replay_tr'], model=model, device=device)
+replay_val = Replay(initial_val, seen_classes, hyperparams['replay_val'], model=model, device=device)
 
 # Exposure List
 exposure_tr_list = []

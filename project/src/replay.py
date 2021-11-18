@@ -31,6 +31,8 @@ class Replay(Dataset):
                 initial_tr,
                 initial_classes, 
                 keep_num,  # number of samples kept for each class
+                model = None,
+                device = 'cpu'
                 ):
         super().__init__()
         self.num_per_class = keep_num
@@ -39,6 +41,8 @@ class Replay(Dataset):
         self.mean_counters = {}  # Use for running means
         self.classes = initial_classes.copy()
         self.num_class = len(self.classes)
+        self.model = model
+        self.device = device
         
         for label in initial_classes:
             self.audio_all_classes[label] = []
@@ -49,14 +53,20 @@ class Replay(Dataset):
             self.audio_all_classes[label].append(audio)
             
         for label in self.audio_all_classes:
-            self.audio_all_classes[label] = torch.Tensor(np.stack(self.audio_all_classes[label]))
-            class_mean = torch.mean(self.audio_all_classes[label], dim=0)
+            self.audio_all_classes[label] = torch.Tensor(np.stack(self.audio_all_classes[label])).to(self.device)
+            
+            if self.model != None:
+                audio_encoded = self.model.encode(self.audio_all_classes[label])
+            else:
+                audio_encoded = self.audio_all_classes[label]
+                            
+            class_mean = torch.mean(audio_encoded, dim=0)
             self.mean_all_classes[label] = class_mean
-            self.mean_counters[label] = len(self.audio_all_classes[label])
+            # self.mean_counters[label] = len(audio_encoded)
             
             # Sort audios by L2 distance to the class mean
             dists = torch.norm(
-                self.audio_all_classes[label] - class_mean, dim=-1
+                audio_encoded - class_mean, dim=-1
             )
             indices = torch.argsort(dists)
             self.audio_all_classes[label] = self.audio_all_classes[label][indices]
@@ -86,14 +96,20 @@ class Replay(Dataset):
                 audio, _ = exposure[i]
                 self.audio_all_classes[label].append(audio)
             
-            self.audio_all_classes[label] = torch.Tensor(np.stack(self.audio_all_classes[label]))
-            class_mean = torch.mean(self.audio_all_classes[label], dim=0)
+            self.audio_all_classes[label] = torch.Tensor(np.stack(self.audio_all_classes[label])).to(self.device)
+            
+            if self.model != None:
+                audio_encoded = self.model.encode(self.audio_all_classes[label])
+            else:
+                audio_encoded = self.audio_all_classes[label]
+            
+            class_mean = torch.mean(audio_encoded, dim=0)
             self.mean_all_classes[label] = class_mean
-            self.mean_counters[label] = len(self.audio_all_classes[label])
+            # self.mean_counters[label] = len(audio_encoded)
             
             # Sort audios by L2 distance to the class mean
             dists = torch.norm(
-                self.audio_all_classes[label] - class_mean, dim=-1
+                audio_encoded - class_mean, dim=-1
             )
             indices = torch.argsort(dists)
             self.audio_all_classes[label] = self.audio_all_classes[label][indices]
@@ -108,27 +124,35 @@ class Replay(Dataset):
                 audio, _ = exposure[i]
                 exposure_audios.append(audio)
                 
-            exposure_audios = torch.Tensor(np.stack(exposure_audios))
+            exposure_audios = torch.Tensor(np.stack(exposure_audios)).to(self.device)
+                    
+            # old_class_count = self.mean_counters[label]
+            # old_class_mean = self.mean_all_classes[label]
+            # old_class_total = old_class_count * old_class_mean
             
-            old_class_count = self.mean_counters[label]
-            old_class_mean = self.mean_all_classes[label]
-            old_class_total = old_class_count * old_class_mean
-            
-            new_class_count = len(exposure_audios)
-            new_class_mean = torch.mean(exposure_audios, dim=0)
-            new_class_total = new_class_count * new_class_mean
-            
-            class_mean = (old_class_total + new_class_total) / (old_class_count + new_class_count)    
-            self.mean_counters[label] = old_class_count + new_class_count
+            # new_class_count = len(exposure_audios)
+            # new_class_mean = torch.mean(exposure_audios, dim=0)
+            # new_class_total = new_class_count * new_class_mean
+            # class_mean = (old_class_total + new_class_total) / (old_class_count + new_class_count)    
+            # self.mean_counters[label] = old_class_count + new_class_count
 
+            
             self.audio_all_classes[label] = torch.cat(
                                                 [self.audio_all_classes[label], exposure_audios],
                                                 dim=0
                                             )
             
+            if self.model != None:
+                audio_encoded = self.model.encode(self.audio_all_classes[label])
+            else:
+                audio_encoded = self.audio_all_classes[label]
+            
+            class_mean = torch.mean(audio_encoded, dim=0)
+            self.mean_all_classes[label] = class_mean
+            
             # Sort audios by L2 distance to the class mean
             dists = torch.norm(
-                self.audio_all_classes[label] - class_mean, dim=-1
+                audio_encoded - class_mean, dim=-1
             )
             indices = torch.argsort(dists)
             self.audio_all_classes[label] = self.audio_all_classes[label][indices]
