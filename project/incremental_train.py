@@ -13,6 +13,7 @@ from src.CNNs import Cnn14, Cnn6
 from src.UrbanSound import UrbanSoundDataset, UrbanSoundExposureGenerator
 from src.replay import Replay, ReplayExposureBlender, classwise_accuracy
 from src.novelty_detect import make_novelty_detector
+from src.wav2clip.encoder import ResNetExtractor
 
 if __name__ == '__main__':
     
@@ -51,7 +52,7 @@ if __name__ == '__main__':
         initial_K=hyperparams['initial_K']
     )
 
-    initial_tr, initial_val, seen_classes = exposure_generator.get_initial_set()
+    initial_tr, initial_val, seen_classes = exposure_generator.get_initial_set([0,2,5,9])
     experiment.log_parameters({'inital_classes': seen_classes})
 
     exposure_tr_list = []
@@ -81,6 +82,8 @@ if __name__ == '__main__':
         model = w2c_classifier(ckpt=ckpt, scenario=scenario)
         
     model.to(device)
+
+    encoder = ResNetExtractor(checkpoint=ckpt,scenario='frozen',transform=True)
     #####################################################################################
 
 
@@ -191,8 +194,8 @@ if __name__ == '__main__':
 
 
     # train model on exposures incrementally
-    prev_tr = Replay(initial_tr, seen_classes, exposure_train_size)
-    prev_val = Replay(initial_val, seen_classes, hyperparams['exposure_val_size'])
+    prev_tr = Replay(initial_tr, seen_classes, exposure_train_size, encoder)
+    prev_val = Replay(initial_val, seen_classes, hyperparams['exposure_val_size'], encoder)
 
     exposure_labels = []
     
@@ -210,6 +213,7 @@ if __name__ == '__main__':
         print('------------------------------------')
 
         best_exposure_acc = -9999
+        best_half_exposure_acc = -9999
         best_exposure_classwise_acc = []
         since_best = 0
         since_reduce = 0
@@ -300,13 +304,16 @@ if __name__ == '__main__':
                     print(f'Class {seen_classes[sc_i]} accuracy: {classwise_acc[sc_i]}')
 
                 print(f'Class {new_tr.pseudo_label} accuracy: {classwise_acc[-1]}')
-
+                
+                if epoch > (hyperparams['num_epochs_ex'] // 2) - 1:
+                    if acc > best_half_exposure_acc:
+                        best_half_exposure_acc = acc
+                        best_exposure_classwise_acc = classwise_acc[:-1]
+                
                 if acc > best_exposure_acc:
                     since_best = 0
                     since_reduce = 0
-                    if epoch >= (hyperparams['num_epochs_ex'] // 2) - 1:
-                        best_exposure_acc = acc
-                        best_exposure_classwise_acc = classwise_acc[:-1]
+                    best_exposure_acc = acc
 
                 else:
                     since_reduce += 1
@@ -320,14 +327,23 @@ if __name__ == '__main__':
                         scheduler.step()
                         print('Learning rate reduced to', optimizer.param_groups[0]["lr"])
 
+
             print('Prev Acc:', best_prev_classwise_acc)
             print('Exposure Acc:', best_exposure_classwise_acc)
 
             novelty_detected, max_drop_class, num_drop_class = novelty_detector(best_prev_classwise_acc, best_exposure_classwise_acc, seen_classes, hyperparams['threshold'])
 
-            print('Novelty Detected ' + ['Incorrect', 'Correct'][int(novelty_detected == true_novelty)])
-            print('Seen Class Detected ' + ['Incorrect', 'Correct'][int(max_drop_class == true_max_drop_class)])
-            print('Drop Class Num ' + ['Incorrect', 'Correct'][int(num_drop_class == true_num_drop_class)])
+            novelty_correct = (novelty_detected == true_novelty)
+            class_correct = (max_drop_class == true_max_drop_class)
+            num_correct = (num_drop_class == true_num_drop_class)
+
+            if novelty_correct == False or class_correct == False:
+                print('Detection Failed! Stopping...')
+                break
+
+            print('Novelty Detected ' + ['Incorrect', 'Correct'][int(novelty_correct)])
+            print('Seen Class Detected ' + ['Incorrect', 'Correct'][int(class_correct)])
+            print('Drop Class Num ' + ['Incorrect', 'Correct'][int(num_correct)])
 
             print("Novelty:", true_novelty, "  Novelty Detected:", novelty_detected)
             print("Seen Class:", true_max_drop_class, "  Seen Class Detected:", max_drop_class)

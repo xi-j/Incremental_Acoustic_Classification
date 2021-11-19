@@ -130,8 +130,8 @@ def incremental_train_3():
 
         'hyperparams' : {
             'sr': 16000,
-            'exposure_size': 150, 
-            'exposure_val_size': 30, 
+            'exposure_size': 180, 
+            'exposure_val_size': 60, 
             'initial_K': 4,
             'train_val_folders' : [1,2,3,4,5,6,7,8,9],
             'eval_folder' : [10],
