@@ -55,7 +55,6 @@ class UrbanSoundDataset(Dataset):
             return audio[:self.num_samples]
         else:
             delta = self.num_samples - length
-            delta = self.num_samples - length
             return np.pad(audio, (0, delta), 'constant')
             
     def __len__(self):
@@ -91,7 +90,6 @@ class UrbanSoundExposureGenerator(Dataset):
                 return audio[:self.num_samples]
             else:
                 delta = self.num_samples - length
-                delta = self.num_samples - length
                 return np.pad(audio, (0, delta), 'constant')
 
         def __len__(self):
@@ -123,7 +121,6 @@ class UrbanSoundExposureGenerator(Dataset):
             elif length > self.num_samples:
                 return audio[:self.num_samples]
             else:
-                delta = self.num_samples - length
                 delta = self.num_samples - length
                 return np.pad(audio, (0, delta), 'constant')
 
