@@ -35,6 +35,7 @@ class Replay(Dataset):
                 device = 'cpu',
                 scenario='frozen'
                 ):
+        assert scenario in ['frozen', 'finetune']
         super().__init__()
         self.num_per_class = keep_num
         self.audio_all_classes = {}
@@ -44,7 +45,6 @@ class Replay(Dataset):
         self.num_class = len(self.classes)
         self.model = model
         self.device = device
-        assert scenario in ['frozen', 'finetune']
         self.scenario = scenario
         
         for label in initial_classes:
