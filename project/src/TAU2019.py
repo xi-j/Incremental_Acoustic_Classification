@@ -235,10 +235,13 @@ class TAUExposureGenerator(Dataset):
         self.audio_files = []
         # reserved test files
         self.test_files = {}
+        self.train_files = {}
 
         for i in range(10):
             self.audio_files.append([])
             self.test_files[i] = 0
+            self.train_files[i] = 0
+
         for filename in os.listdir(self.audio_path):
             if filename.endswith(".wav"):
                 for label in self.classes:
@@ -255,9 +258,11 @@ class TAUExposureGenerator(Dataset):
         # Shuffle all files and index exposures
         self.exposure_remain_idx = []
         for i in range(10):
+            random.seed(i)
             random.shuffle(self.audio_files[i])
             self.audio_files[i] = self.audio_files[i][0:-self.test_size]
             self.test_files[i] = self.audio_files[i][-self.test_size:]
+            self.train_files[i] = self.audio_files[i][0:-self.test_size]
                         
             exposure_num = len(self.audio_files[i])//self.exposure_size
             self.exposure_per_class.append(exposure_num)
@@ -269,6 +274,9 @@ class TAUExposureGenerator(Dataset):
         
     def get_test_set(self):
         return TAUTestset(self.test_files, self.sr)
+
+    def get_train_set(self):
+        return TAUTestset(self.train_files, self.sr)
         
     def get_initial_set(self, initial_classes=None):
         '''
