@@ -1,33 +1,36 @@
 import time
 
-def test_config():
+def xilin_config():
     cfg = {
-        'experiment_name' : 'test_config',
-        'dataset_path' : '../../Datasets/UrbanSound8K',
+        'experiment_name' : 'xilin_incremental',
+        'dataset' : 'TAU',
+        'dataset_path' : '/mnt/data/DCASE2019/Task1/TAU-urban-acoustic-scenes-2019-development',
 
         'comet' : {
-            'api_key' : 'pDxZIMJ2Bh2Abj9kefxI8jJvK',
+            'api_key' : 'kOAHVqhBnkw2R6FQr6b0uOemJ',
             'project_name' : 'cs545',
-            'workspace' : 'wjk0925',
+            'workspace' : 'xi-j',
         },
 
         'hyperparams' : {
             'sr': 16000,
             'exposure_size': 300, 
             'exposure_val_size': 50, 
-            'initial_K': 4,
-            'train_val_folders' : [1,2,3,4,5,6,7,8,9,10],
-            'eval_folder' : [11],
+            'initial_K': 1,
+            'train_val_folders' : [1,2,3,4,5,6,7,8,9],
+            'eval_folder' : [10],
+            'test_size' : 240,
             'batch_size': 4,
-            'num_epochs': 3,
-            'num_epochs_ex' : 3,
+            'num_epochs': 2,
+            'num_epochs_ex' : 10,
             'lr' : 3e-5,
             'reduce_lr_wait' : 2,
             'reduce_lr_factor' : 2/3,
             'early_stop' : False,
             'early_stop_wait' : 10,
             'model' : 'Wav2CLIP',
-            'device' : 'cuda',
+            'scenario' : 'frozen',
+            'device' : 'cuda:2',
             'novelty_detector' : 'confusion',
             'imbalance_ratio' : 0.25,
             'threshold' : 0.5,
@@ -42,12 +45,12 @@ def incremental_train():
 
     cfg = {
         'experiment_name' : 'incremental_train_' + str(experiment_time),
-        'dataset_path' : '../../Datasets/UrbanSound8K',
+        'dataset_path' : 'UrbanSound8K',
 
         'comet' : {
-            'api_key' : 'pDxZIMJ2Bh2Abj9kefxI8jJvK',
+            'api_key' : 'kOAHVqhBnkw2R6FQr6b0uOemJ',
             'project_name' : 'cs545',
-            'workspace' : 'wjk0925',
+            'workspace' : 'xi-j',
         },
 
         'hyperparams' : {
@@ -66,7 +69,7 @@ def incremental_train():
             'early_stop' : False,
             'early_stop_wait' : 10,
             'model' : 'Wav2CLIP',
-            'device' : 'cuda',
+            'device' : 'cuda:3',
             'novelty_detector' : 'confusion',
             'imbalance_ratio' : 0.25,
             'threshold' : 0.5,

@@ -2,7 +2,7 @@ from comet_ml import Experiment
 import torch
 import torch.nn as nn
 from torchvision.transforms import ToTensor
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 import numpy as np
 from tqdm import tqdm
 import os
@@ -11,6 +11,7 @@ import argparse
 from src.wav2clip_classifier import w2c_classifier
 from src.CNNs import Cnn14, Cnn6
 from src.UrbanSound import UrbanSoundDataset, UrbanSoundExposureGenerator
+from src.TAU2019 import TAUDataset, TAUExposureGenerator
 from src.replay import Replay, ReplayExposureBlender, classwise_accuracy
 from src.novelty_detect import make_novelty_detector
 from src.wav2clip.encoder import ResNetExtractor
@@ -19,28 +20,24 @@ if __name__ == '__main__':
     
     # init hyperparameters, comet, ...
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cfg", default="test_config")
+    parser.add_argument("--cfg", default="xilin_config")
     args = vars(parser.parse_args())
     
     from configs import *
     cfg = globals()[args['cfg']]()
 
     hyperparams = cfg['hyperparams']
-
     experiment_name = cfg['experiment_name']
-
     experiment = Experiment(
         api_key = cfg['comet']['api_key'],
         project_name = cfg['comet']['project_name'],
         workspace=cfg['comet']['workspace'],
     )
-
     experiment.log_parameters(hyperparams)
-    tags = 'UrbanSound', 'Wav2CLIP', 'Initial 4', 'Exposure 1+1', 'seen vs unseen', 'Novelty Detector'
+    tags = cfg['dataset'], hyperparams['model'], 'Initial '+str(hyperparams['initial_K'])
     experiment.add_tags(tags)
     experiment.set_name(experiment_name)
     #####################################################################################
-
 
     # init initial train/val set, exposures
     exposure_generator = UrbanSoundExposureGenerator(
@@ -77,7 +74,7 @@ if __name__ == '__main__':
 
     if hyperparams['model'] == 'Wav2CLIP':
         MODEL_URL = "https://github.com/descriptinc/lyrebird-wav2clip/releases/download/v0.1.0-alpha/Wav2CLIP.pt"
-        scenario = 'finetune'
+        scenario = hyperparams['scenario']
         ckpt = torch.hub.load_state_dict_from_url(MODEL_URL, map_location=device, progress=True)
         model = w2c_classifier(ckpt=ckpt, scenario=scenario)
         
@@ -116,7 +113,7 @@ if __name__ == '__main__':
 
     os.makedirs(os.path.join('ckpts', experiment_name, 'pretrain'))
 
-    print('Train on Inital Classes', seen_classes)
+    print('Train on Initial Classes', seen_classes)
     print('------------------------------------')
     with experiment.train():
         for epoch in tqdm(range(hyperparams['num_epochs']), desc='Epoch'):
@@ -156,7 +153,8 @@ if __name__ == '__main__':
             
             for i in range(len(seen_classes)):
                 val_all_acc_list[seen_classes[i]].append(classwise_acc[i])
-                #experiment.log_metric(f"Validation accuracy class {seen_classes[i]}", classwise_acc[i], step=epoch)
+                #experiment.log_metric(
+                # f"Validation accuracy class {seen_classes[i]}", classwise_acc[i], step=epoch)
                 print(f'Class {seen_classes[i]} accuracy: {classwise_acc[i]}')
 
             if acc > best_pretrain_acc:
@@ -223,7 +221,8 @@ if __name__ == '__main__':
         exposure_tr = exposure_tr_list[i]
         exposure_val = exposure_val_list[i]
 
-        new_tr = ReplayExposureBlender(prev_tr, exposure_tr, seen_classes, resize=int(hyperparams['imbalance_ratio']*exposure_train_size))
+        new_tr = ReplayExposureBlender(prev_tr, exposure_tr, seen_classes, 
+                                       resize=int(hyperparams['imbalance_ratio']*exposure_train_size))
         new_tr_loader = DataLoader(new_tr, batch_size=hyperparams['batch_size'], shuffle=True, num_workers=4)
 
         new_val = ReplayExposureBlender(prev_val, exposure_val, seen_classes)
@@ -331,7 +330,8 @@ if __name__ == '__main__':
             print('Prev Acc:', best_prev_classwise_acc)
             print('Exposure Acc:', best_exposure_classwise_acc)
 
-            novelty_detected, max_drop_class, num_drop_class = novelty_detector(best_prev_classwise_acc, best_exposure_classwise_acc, seen_classes, hyperparams['threshold'])
+            novelty_detected, max_drop_class, num_drop_class = novelty_detector(
+                best_prev_classwise_acc, best_exposure_classwise_acc, seen_classes, hyperparams['threshold'])
 
             novelty_correct = (novelty_detected == true_novelty)
             class_correct = (max_drop_class == true_max_drop_class)

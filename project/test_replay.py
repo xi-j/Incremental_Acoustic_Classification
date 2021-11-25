@@ -54,8 +54,10 @@ model = w2c_classifier(ckpt=ckpt, scenario=scenario)
 model.to(device)
 
 # Initialize Replay
-replay_tr = Replay(initial_tr, seen_classes, hyperparams['replay_tr'], model=model, device=device)
-replay_val = Replay(initial_val, seen_classes, hyperparams['replay_val'], model=model, device=device)
+replay_tr = Replay(initial_tr, seen_classes, hyperparams['replay_tr'], model=model, 
+                   device=device, scenario='finetune')
+replay_val = Replay(initial_val, seen_classes, hyperparams['replay_val'], model=model, 
+                    device=device, scenario='finetune')
 
 # Exposure List
 exposure_tr_list = []
