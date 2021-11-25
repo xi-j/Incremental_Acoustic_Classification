@@ -258,9 +258,7 @@ class TAUExposureGenerator(Dataset):
             random.shuffle(self.audio_files[i])
             self.audio_files[i] = self.audio_files[i][0:-self.test_size]
             self.test_files[i] = self.audio_files[i][-self.test_size:]
-            
-            print(len(self.audio_files[i]), len(self.test_files[i]))
-            
+                        
             exposure_num = len(self.audio_files[i])//self.exposure_size
             self.exposure_per_class.append(exposure_num)
             for j in range(exposure_num):

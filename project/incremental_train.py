@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
+import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 import os
@@ -82,8 +83,6 @@ if __name__ == '__main__':
 
     encoder = ResNetExtractor(checkpoint=ckpt,scenario='frozen',transform=True)
     #####################################################################################
-
-
     # init universal functions, arg, ...
     criterion = nn.CrossEntropyLoss()
     novelty_detector = make_novelty_detector(mode=hyperparams['novelty_detector'])
@@ -91,6 +90,14 @@ if __name__ == '__main__':
     exposure_train_size = hyperparams['exposure_size'] - hyperparams['exposure_val_size']
     loss_cycle = 100
     true_seen_classes = seen_classes.copy()
+    initial_seen_classes = seen_classes.copy()
+    
+    exposure_order_x = []
+    exposure_order_y = []
+    for c in seen_classes:
+        exposure_order_x.append(0)
+        exposure_order_y.append(c)
+    
     #####################################################################################
 
 
@@ -124,9 +131,6 @@ if __name__ == '__main__':
                 loss = criterion(yhat, y)
                 train_loss_list.append(loss.item())
                 loss_counter += 1
-                #if loss_counter % loss_cycle == 0:
-                    #print()
-                    #print('Average running loss:', sum(train_loss_list[-loss_cycle:]) / loss_cycle)
 
                 optimizer.zero_grad()
                 loss.backward()
@@ -153,9 +157,8 @@ if __name__ == '__main__':
             
             for i in range(len(seen_classes)):
                 val_all_acc_list[seen_classes[i]].append(classwise_acc[i])
-                #experiment.log_metric(
-                # f"Validation accuracy class {seen_classes[i]}", classwise_acc[i], step=epoch)
-                print(f'Class {seen_classes[i]} accuracy: {classwise_acc[i]}')
+                experiment.log_metric(
+                    f"initial val accuracy class {seen_classes[i]}", classwise_acc[i], step=epoch)
 
             if acc > best_pretrain_acc:
                 since_best = 0
@@ -208,6 +211,8 @@ if __name__ == '__main__':
         print('')
         print('Exposure', i)
         print('Class', label)
+        exposure_order_x.append(i+1)
+        exposure_order_y.append(label)
         print('------------------------------------')
 
         best_exposure_acc = -9999
@@ -271,9 +276,6 @@ if __name__ == '__main__':
                     loss = criterion(yhat, y)
                     train_loss_list.append(loss.item())
                     loss_counter += 1
-                    #if loss_counter % loss_cycle == 0:
-                        #print()
-                        #print('Average running loss:', sum(train_loss_list[-loss_cycle:]) / loss_cycle)
 
                     optimizer.zero_grad()
                     loss.backward()
@@ -289,7 +291,6 @@ if __name__ == '__main__':
                         truths.extend(y.tolist())
                         predictions.extend(yhat.tolist())
         
-                #acc = sum(np.array(truths)==np.array(predictions))/len(truths)
                 acc, classwise_acc = classwise_accuracy(np.array(predictions).flatten(),
                                                     np.array(truths).flatten(),
                                                     11,
@@ -300,8 +301,7 @@ if __name__ == '__main__':
                 print('Accuracy: ', acc)
                 
                 for sc_i in range(len(seen_classes)):
-                    print(f'Class {seen_classes[sc_i]} accuracy: {classwise_acc[sc_i]}')
-
+                    print(f'Class {seen_classes[sc_i]} accuracy: {classwise_acc[sc_i]}')                    
                 print(f'Class {new_tr.pseudo_label} accuracy: {classwise_acc[-1]}')
                 
                 if epoch > (hyperparams['num_epochs_ex'] // 2) - 1:
@@ -330,6 +330,20 @@ if __name__ == '__main__':
             print('Prev Acc:', best_prev_classwise_acc)
             print('Exposure Acc:', best_exposure_classwise_acc)
 
+            for sc_i in range(len(seen_classes)):    
+                if seen_classes[sc_i] in initial_seen_classes:   
+                    experiment.log_metric(
+                        f"novel detection val accuracy class {seen_classes[sc_i]}", 
+                        best_exposure_classwise_acc[sc_i], 
+                        step=i+1
+                    )
+                else:
+                    experiment.log_metric(
+                        f"novel detection val accuracy pseudo class {seen_classes[sc_i]}", 
+                        best_exposure_classwise_acc[sc_i], 
+                        step=i+1
+                    )
+            
             novelty_detected, max_drop_class, num_drop_class = novelty_detector(
                 best_prev_classwise_acc, best_exposure_classwise_acc, seen_classes, hyperparams['threshold'])
 
@@ -361,7 +375,8 @@ if __name__ == '__main__':
             new_val = ReplayExposureBlender(prev_val, exposure_val, seen_classes, label=inferred_label)
 
             new_tr_loader = DataLoader(new_tr, batch_size=hyperparams['batch_size'], shuffle=True, num_workers=4)
-            new_val_loader = DataLoader(new_val, batch_size=hyperparams['batch_size'], shuffle=True, num_workers=4)
+            new_val_loader = DataLoader(
+                new_val, batch_size=hyperparams['batch_size'], shuffle=True, num_workers=4)
 
             best_retrain_acc = -9999
             best_retrain_classwise_acc = []
@@ -404,9 +419,6 @@ if __name__ == '__main__':
                         loss = criterion(yhat, y)
                         train_loss_list.append(loss.item())
                         loss_counter += 1
-                        #if loss_counter % loss_cycle == 0:
-                            #print()
-                            #print('Average running loss:', sum(train_loss_list[-loss_cycle:]) / loss_cycle)
 
                         optimizer.zero_grad()
                         loss.backward()
@@ -422,7 +434,6 @@ if __name__ == '__main__':
                             truths.extend(y.tolist())
                             predictions.extend(yhat.tolist())
             
-                    #acc = sum(np.array(truths)==np.array(predictions))/len(truths
                     if inferred_label not in seen_classes:
                         seen_classes = seen_classes + [inferred_label]
                         true_seen_classes = true_seen_classes + [label]
@@ -435,11 +446,8 @@ if __name__ == '__main__':
 
                     print()
                     print('Accuracy: ', acc)
-                    
-                    for sc_i in range(len(seen_classes)):
-                        print(f'Class {seen_classes[sc_i]} accuracy: {classwise_acc[sc_i]}')
-
-
+                    print(f'Class {seen_classes[sc_i]} accuracy: {classwise_acc[sc_i]}')
+                                            
                     if acc > best_retrain_acc:
                         since_best = 0
                         since_reduce = 0
@@ -468,16 +476,40 @@ if __name__ == '__main__':
 
                 print('Prev Acc:', best_prev_classwise_acc)
                 print('Retrain Acc:', best_retrain_classwise_acc)
-
+                
                 best_prev_classwise_acc = best_retrain_classwise_acc
                 best_prev_acc = best_retrain_acc
+                
+                for sc_i in range(len(seen_classes)):
+                    if seen_classes[sc_i] in initial_seen_classes: 
+                        experiment.log_metric(
+                            f"retrain val accuracy class {seen_classes[sc_i]}", 
+                            best_retrain_classwise_acc[sc_i], 
+                            step=i+1
+                        )
+                    else:
+                        experiment.log_metric(
+                            f"retrain val accuracy pseudo class {seen_classes[sc_i]}", 
+                            best_retrain_classwise_acc[sc_i],
+                            step=i+1
+                        )   
 
                 prev_tr.update(exposure_tr, inferred_label)
                 prev_val.update(exposure_val, inferred_label)
+                
 
     print('True labels:', true_seen_classes)
     experiment.log_parameters({'True Seen Classes': true_seen_classes})
-                
+    
+    f = plt.figure(figsize=(12,12))
+    ax = f.add_subplot(1,1,1)
+    ax.scatter(exposure_order_x, exposure_order_y)
+    ax.set_ylim(0, 10)
+    ax.set_title('Exposure Labels')
+    ax.set_xlabel('Exposures')
+    plt.show(block=False)
+    experiment.log_figure(figure_name='Exposure Arrival Ordering')
+
 
 
 
