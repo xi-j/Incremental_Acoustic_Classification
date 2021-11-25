@@ -27,8 +27,8 @@ if __name__ == '__main__':
 
     experiment_name = cfg['experiment_name']
     
-    urban_eval = UrbanSoundDataset(cfg['dataset_path'], hyperparams['eval_folder'], sr=hyperparams['sr'], transform=ToTensor())
-    urban_eval_loader = DataLoader(urban_eval, batch_size=6, shuffle=False,num_workers=4)
+    urban_eval = UrbanSoundDataset(cfg['dataset_path'], [10], sr=hyperparams['sr'], transform=ToTensor())
+    urban_eval_loader = DataLoader(urban_eval, batch_size=12, shuffle=False,num_workers=4)
 
     device = hyperparams['device']
     
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     model.to(device)
 
     model.load_state_dict(
-        torch.load('ckpts/incremental_train_1637206974/exposure36/Wav2CLIP3_4_1_5_0_2_6_7_8_9_0.9575757575757575.pt')
+        torch.load('ckpts/incremental_train_1637360968/exposure37/Wav2CLIP0_2_5_9_1_3_4_6_7_8_0.9606060606060606.pt')
         )
 
     truths = []
@@ -63,7 +63,7 @@ if __name__ == '__main__':
 
     # 3 - 0,8 - 3, 9 - 6, 7 - 7, 0 - 8, 6 - 9
     
-    mapping = {9:9, 8:8, 7:7, 1:1, 0:3, 2:2, 3:6, 4:4, 5:0, 6:5, 10:10}
+    mapping = {0:0, 2:2, 5:5, 9:9, 1:3, 3:8, 4:4, 6:7, 7:1, 8:6}
 
     for i in range(len(predictions)):
         predictions[i] = mapping[predictions[i]]
