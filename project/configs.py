@@ -3,8 +3,8 @@ import time
 def xilin_config():
     cfg = {
         'experiment_name' : 'xilin_incremental',
-        'dataset' : 'TAU',
-        'dataset_path' : '/mnt/data/DCASE2019/Task1/TAU-urban-acoustic-scenes-2019-development',
+        'dataset' : 'UrbanSound8K',
+        'dataset_path' : 'UrbanSound8K',
 
         'comet' : {
             'api_key' : 'kOAHVqhBnkw2R6FQr6b0uOemJ',
@@ -16,12 +16,12 @@ def xilin_config():
             'sr': 16000,
             'exposure_size': 300, 
             'exposure_val_size': 50, 
-            'initial_K': 1,
-            'train_val_folders' : [1,2,3,4,5,6,7,8,9],
+            'initial_K': 2,
+            'train_val_folders' : [1, 2, 3, 4, 5, 6, 7, 8, 9],
             'eval_folder' : [10],
             'test_size' : 240,
             'batch_size': 4,
-            'num_epochs': 2,
+            'num_epochs': 10,
             'num_epochs_ex' : 10,
             'lr' : 3e-5,
             'reduce_lr_wait' : 2,
@@ -30,7 +30,7 @@ def xilin_config():
             'early_stop_wait' : 10,
             'model' : 'Wav2CLIP',
             'scenario' : 'frozen',
-            'device' : 'cuda:2',
+            'device' : 'cuda:3',
             'novelty_detector' : 'confusion',
             'imbalance_ratio' : 0.25,
             'threshold' : 0.5,
