@@ -60,7 +60,7 @@ class Replay(Dataset):
             
             if self.model != None:
                 with torch.no_grad():
-                    audio_encoded = self.model.encode(self.audio_all_classes[label])
+                    audio_encoded = self.model(self.audio_all_classes[label])
             else:
                 audio_encoded = self.audio_all_classes[label]
                             
@@ -105,7 +105,7 @@ class Replay(Dataset):
             
             if self.model != None:
                 with torch.no_grad():
-                    audio_encoded = self.model.encode(self.audio_all_classes[label])
+                    audio_encoded = self.model(self.audio_all_classes[label])
             else:
                 audio_encoded = self.audio_all_classes[label]
             
@@ -139,7 +139,7 @@ class Replay(Dataset):
             
             if self.model != None:
                 with torch.no_grad():
-                    audio_encoded = self.model.encode(self.audio_all_classes[label])
+                    audio_encoded = self.model(self.audio_all_classes[label])
             else:
                 audio_encoded = self.audio_all_classes[label]
             

@@ -117,3 +117,42 @@ def incremental_train_2():
     }
 
     return cfg
+
+def incremental_train_3():
+    experiment_time = int(time.time())
+
+    cfg = {
+        'experiment_name' : 'incremental_train_' + str(experiment_time),
+        'dataset_path' : '../../Datasets/UrbanSound8K',
+
+        'comet' : {
+            'api_key' : 'pDxZIMJ2Bh2Abj9kefxI8jJvK',
+            'project_name' : 'cs545',
+            'workspace' : 'wjk0925',
+        },
+
+        'hyperparams' : {
+            'sr': 16000,
+            'exposure_size': 180, 
+            'exposure_val_size': 60, 
+            'initial_K': 4,
+            'train_val_folders' : [1,2,3,4,5,6,7,8,9],
+            'eval_folder' : [10],
+            'batch_size': 6,
+            'num_epochs': 12,
+            'num_epochs_ex' : 8,
+            'lr' : 4e-5,
+            'reduce_lr_wait' : 2,
+            'reduce_lr_factor' : 2/3,
+            'early_stop' : False,
+            'early_stop_wait' : 10,
+            'model' : 'Wav2CLIP',
+            'device' : 'cuda',
+            'novelty_detector' : 'confusion',
+            'imbalance_ratio' : 0.2,
+            'threshold' : 0.4,
+        }
+
+    }
+
+    return cfg

@@ -28,7 +28,7 @@ if __name__ == '__main__':
     experiment_name = cfg['experiment_name']
     
     urban_eval = UrbanSoundDataset(cfg['dataset_path'], hyperparams['eval_folder'], sr=hyperparams['sr'], transform=ToTensor())
-    urban_eval_loader = DataLoader(urban_eval, batch_size=8, shuffle=False,num_workers=4)
+    urban_eval_loader = DataLoader(urban_eval, batch_size=6, shuffle=False,num_workers=4)
 
     device = hyperparams['device']
     
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     model.to(device)
 
     model.load_state_dict(
-        torch.load('ckpts/incremental_train_1637103126/exposure20/Wav2CLIP9_8_7_1_0_2_3_4_5_6_0.9690909090909091.pt')
+        torch.load('ckpts/incremental_train_1637206974/exposure36/Wav2CLIP3_4_1_5_0_2_6_7_8_9_0.9575757575757575.pt')
         )
 
     truths = []

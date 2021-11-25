@@ -2,12 +2,12 @@ from src.TAU2019 import TAUDataset, TAUExposureGenerator
 from torch.utils.data import DataLoader
 
 dataset = TAUDataset(
-    path='/mnt/data/DCASE2019/Task1/TAU-urban-acoustic-scenes-2019-development',
+    path='D:\Datasets\TAU',
     sr=16000
 )
 
 exposure_generator = TAUExposureGenerator(
-    '/mnt/data/DCASE2019/Task1/TAU-urban-acoustic-scenes-2019-development', 
+    'D:\Datasets\TAU', 
     sr=16000, 
     exposure_size=300, 
     exposure_val_size=50, 
