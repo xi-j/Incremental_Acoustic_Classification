@@ -50,6 +50,9 @@ if __name__ == '__main__':
             exposure_val_size=hyperparams['exposure_val_size'], 
             initial_K=hyperparams['initial_K']
         )
+        # torch.save(exposure_generator, 'saved_generators/UrbanSoundExGenerator.pt')
+        # exposure_generator = torch.load('saved_generators/UrbanSoundExGenerator.pt')
+        
     elif cfg['dataset'] == 'TAU':
         exposure_generator = TAUExposureGenerator(
             cfg['dataset_path'], 
@@ -63,21 +66,20 @@ if __name__ == '__main__':
         
     initial_tr, initial_val, seen_classes = exposure_generator.get_initial_set()
     experiment.log_parameters({'inital_classes': seen_classes})
-
+    initial_tr_loader = DataLoader(initial_tr, batch_size=hyperparams['batch_size'], 
+                                shuffle=True, num_workers=4)
+    initial_val_loader = DataLoader(initial_val, batch_size=hyperparams['batch_size'], 
+                                    shuffle=True, num_workers=4)
+    
     exposure_tr_list = []
     exposure_val_list = []
     exposure_label_list = []
-
     for i in range(len(exposure_generator)):
         exposure_tr, exposure_val, label  = exposure_generator[i]  
         exposure_tr_list.append(exposure_tr)
         exposure_val_list.append(exposure_val)
         exposure_label_list.append(label)
-
-    initial_tr_loader = DataLoader(initial_tr, batch_size=hyperparams['batch_size'], 
-                                shuffle=True, num_workers=4)
-    initial_val_loader = DataLoader(initial_val, batch_size=hyperparams['batch_size'], 
-                                    shuffle=True, num_workers=4)
+    print('Exposures to be seen: ', exposure_label_list)
     #####################################################################################
     
 
@@ -164,11 +166,24 @@ if __name__ == '__main__':
             print()
             print('Accuracy: ', acc)
             
-            for i in range(len(seen_classes)):
-                val_all_acc_list[seen_classes[i]].append(classwise_acc[i])
+            for sc_i in range(len(seen_classes)):
+                val_all_acc_list[seen_classes[sc_i]].append(classwise_acc[sc_i])
                 experiment.log_metric(
-                    f"initial val accuracy class {seen_classes[i]}", classwise_acc[i], step=epoch)
-
+                    f"training val accuracy per epoch class {seen_classes[sc_i]}", 
+                    classwise_acc[sc_i], 
+                    step=epoch
+                )
+                experiment.log_metric(
+                    f"novelty detection val accuracy per epoch class {seen_classes[sc_i]}", 
+                    classwise_acc[sc_i], 
+                    step=epoch
+                )
+            experiment.log_metric(
+                "total training val accuracy per epoch", 
+                acc, 
+                step=epoch
+            )
+                
             if acc > best_pretrain_acc:
                 since_best = 0
                 since_reduce = 0
@@ -198,8 +213,28 @@ if __name__ == '__main__':
     print('Best Pretrain Acc Classes:', best_pretrain_classwise_acc)
     experiment.log_parameters({'Best Pretrain Acc Classes': best_pretrain_classwise_acc})
 
+    for sc_i in range(len(seen_classes)):
+        experiment.log_metric(
+            f"training val accuracy per exposure class {seen_classes[sc_i]}", 
+            best_pretrain_classwise_acc[sc_i], 
+            step=0
+        )
+        experiment.log_metric(
+            f"novelty detection val accuracy per exposure class {seen_classes[sc_i]}", 
+            best_pretrain_classwise_acc[sc_i], 
+            step=0
+        )
+
+    experiment.log_metric(
+        "total training val accuracy per exposure", 
+        best_pretrain_acc,
+        step=0
+    )
+    
     best_prev_classwise_acc = best_pretrain_classwise_acc
     best_prev_acc = best_pretrain_acc
+    
+    
     #####################################################################################
 
 
@@ -312,18 +347,17 @@ if __name__ == '__main__':
                     print(f'Class {seen_classes[sc_i]} accuracy: {classwise_acc[sc_i]}') 
                     if seen_classes[sc_i] in initial_seen_classes:   
                         experiment.log_metric(
-                            f"novel detection val accuracy per epoch class {seen_classes[sc_i]}", 
-                            classwise_acc[sc_i], 
+                            f"novelty detection val accuracy per epoch class {seen_classes[sc_i]}",
+                            classwise_acc[sc_i],
                             step=hyperparams['num_epochs']+i*hyperparams['num_epochs_ex']+epoch
                         )
                     else:
                         experiment.log_metric(
-                            f"novel detection val accuracy per epoch pseudo class {seen_classes[sc_i]}", 
+                            f"novelty detection val accuracy per epoch pseudo class {seen_classes[sc_i]}", 
                             classwise_acc[sc_i], 
                             step=hyperparams['num_epochs']+i*hyperparams['num_epochs_ex']+epoch
                         )
-                    
-                    
+                        
                 print(f'Class {new_tr.pseudo_label} accuracy: {classwise_acc[-1]}')
 
                 if acc > best_exposure_acc:
@@ -350,13 +384,13 @@ if __name__ == '__main__':
             for sc_i in range(len(seen_classes)):    
                 if seen_classes[sc_i] in initial_seen_classes:   
                     experiment.log_metric(
-                        f"novel detection val accuracy per exposure class {seen_classes[sc_i]}", 
+                        f"novelty detection val accuracy per exposure class {seen_classes[sc_i]}", 
                         best_exposure_classwise_acc[sc_i], 
                         step=i+1
                     )
                 else:
                     experiment.log_metric(
-                        f"novel detection val accuracy per exposure pseudo class {seen_classes[sc_i]}", 
+                        f"novelty detection val accuracy per exposure pseudo class {seen_classes[sc_i]}", 
                         best_exposure_classwise_acc[sc_i], 
                         step=i+1
                     )
@@ -459,16 +493,21 @@ if __name__ == '__main__':
                         print(f'Class {seen_classes[sc_i]} accuracy: {classwise_acc[sc_i]}') 
                         if seen_classes[sc_i] in initial_seen_classes:   
                             experiment.log_metric(
-                                f"retrain val accuracy per epoch class {seen_classes[sc_i]}", 
+                                f"training val accuracy per epoch class {seen_classes[sc_i]}", 
                                 classwise_acc[sc_i], 
                                 step=hyperparams['num_epochs']+i*hyperparams['num_epochs']+epoch
                             )
                         else:
                             experiment.log_metric(
-                                f"retrain val accuracy per epoch pseudo class {seen_classes[sc_i]}", 
+                                f"training val accuracy per epoch pseudo class {seen_classes[sc_i]}", 
                                 classwise_acc[sc_i], 
                                 step=hyperparams['num_epochs']+i*hyperparams['num_epochs']+epoch
                             )
+                    experiment.log_metric(
+                        "total training val accuracy per epoch", 
+                        acc,
+                        step=hyperparams['num_epochs']+i*hyperparams['num_epochs']+epoch
+                    )
 
                     if acc > best_retrain_acc:
                         since_best = 0
@@ -505,16 +544,21 @@ if __name__ == '__main__':
                 for sc_i in range(len(seen_classes)):
                     if seen_classes[sc_i] in initial_seen_classes: 
                         experiment.log_metric(
-                            f"retrain val accuracy per exposure class {seen_classes[sc_i]}", 
+                            f"training val accuracy per exposure class {seen_classes[sc_i]}", 
                             best_retrain_classwise_acc[sc_i], 
                             step=i+1
                         )
                     else:
                         experiment.log_metric(
-                            f"retrain val accuracy per exposure pseudo class {seen_classes[sc_i]}", 
+                            f"training val accuracy per exposure pseudo class {seen_classes[sc_i]}", 
                             best_retrain_classwise_acc[sc_i],
                             step=i+1
-                        )   
+                        )
+                experiment.log_metric(
+                    "total training val accuracy per exposure", 
+                    best_retrain_acc,
+                    step=i+1
+                )
 
                 prev_tr.update(exposure_tr, inferred_label)
                 prev_val.update(exposure_val, inferred_label)
