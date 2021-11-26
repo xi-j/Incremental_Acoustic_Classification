@@ -129,7 +129,7 @@ if __name__ == '__main__':
 
     print('Train on Initial Classes', seen_classes)
     print('------------------------------------')
-    for epoch in tqdm(range(hyperparams['num_epochs']), desc='Epoch'):
+    for epoch in tqdm(range(hyperparams['num_epochs_initial']), desc='Epoch'):
         model.train()
         for x, y in tqdm(initial_tr_loader, desc='Training'):
             x, y = x.to(device), y.to(device)
@@ -341,13 +341,13 @@ if __name__ == '__main__':
                     experiment.log_metric(
                         f"novelty detection val accuracy per epoch class {seen_classes[sc_i]}",
                         classwise_acc[sc_i],
-                        step=hyperparams['num_epochs']+i*hyperparams['num_epochs_ex']+epoch
+                        step=hyperparams['num_epochs_initial']+i*hyperparams['num_epochs_ex']+epoch
                     )
                 else:
                     experiment.log_metric(
                         f"novelty detection val accuracy per epoch pseudo class {seen_classes[sc_i]}", 
                         classwise_acc[sc_i], 
-                        step=hyperparams['num_epochs']+i*hyperparams['num_epochs_ex']+epoch
+                        step=hyperparams['num_epochs_initial']+i*hyperparams['num_epochs_ex']+epoch
                     )
                     
             print(f'Class {new_tr.pseudo_label} accuracy: {classwise_acc[-1]}')
@@ -487,18 +487,18 @@ if __name__ == '__main__':
                         experiment.log_metric(
                             f"training val accuracy per epoch class {seen_classes[sc_i]}", 
                             classwise_acc[sc_i], 
-                            step=hyperparams['num_epochs']+i*hyperparams['num_epochs']+epoch
+                            step=hyperparams['num_epochs_initial']+i*hyperparams['num_epochs']+epoch
                         )
                     else:
                         experiment.log_metric(
                             f"training val accuracy per epoch pseudo class {seen_classes[sc_i]}", 
                             classwise_acc[sc_i], 
-                            step=hyperparams['num_epochs']+i*hyperparams['num_epochs']+epoch
+                            step=hyperparams['num_epochs_initial']+i*hyperparams['num_epochs']+epoch
                         )
                 experiment.log_metric(
                     "total training val accuracy per epoch", 
                     acc,
-                    step=hyperparams['num_epochs']+i*hyperparams['num_epochs']+epoch
+                    step=hyperparams['num_epochs_initial']+i*hyperparams['num_epochs']+epoch
                 )
 
                 if acc > best_retrain_acc:

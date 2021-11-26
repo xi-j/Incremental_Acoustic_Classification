@@ -22,6 +22,7 @@ def xilin_config():
             'test_size' : 240,
             'batch_size': 4,
             'num_epochs': 10,
+            'num_epochs_initial' : 20, 
             'num_epochs_ex' : 6,
             'lr' : 3e-5,
             'reduce_lr_wait' : 2,
