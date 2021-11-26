@@ -1,3 +1,4 @@
+from random import expovariate
 from src.TAU2019 import TAUDataset, TAUExposureGenerator
 from torch.utils.data import DataLoader
 
@@ -20,7 +21,7 @@ initial_tr, initial_val, seen_classes = exposure_generator.get_initial_set()
 
 print(len(exposure_generator))
 
-
+"""
 exposure_tr_list = []
 exposure_val_list = []
 exposure_label_list = []
@@ -34,3 +35,12 @@ initial_tr_loader = DataLoader(initial_tr, batch_size=4,
                                shuffle=True, num_workers=4)
 initial_val_loader = DataLoader(initial_val, batch_size=4, 
                                 shuffle=True, num_workers=4)
+"""
+
+train_set = exposure_generator.get_train_set()
+test_set = exposure_generator.get_test_set()
+
+for x,y in train_set:
+    print(x)
+    print(y)
+    break
