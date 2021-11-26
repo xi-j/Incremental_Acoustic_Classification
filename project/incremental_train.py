@@ -252,11 +252,14 @@ if __name__ == '__main__':
         exposure_order_y.append(label)
         print('------------------------------------')
 
+        
+        #####################################################################################
+        # novel detection
+        
         best_exposure_acc = -9999
         best_exposure_classwise_acc = []
         since_best = 0
         since_reduce = 0
-
         loss_counter = 0
 
         exposure_tr = exposure_tr_list[i]
@@ -370,190 +373,193 @@ if __name__ == '__main__':
                     scheduler.step()
                     print('Learning rate reduced to', optimizer.param_groups[0]["lr"])
 
-            print('Prev Acc:', best_prev_classwise_acc)
-            print('Exposure Acc:', best_exposure_classwise_acc)
+        print('Prev Acc:', best_prev_classwise_acc)
+        print('Exposure Acc:', best_exposure_classwise_acc)
 
-            for sc_i in range(len(seen_classes)):    
-                if seen_classes[sc_i] in initial_seen_classes:   
-                    experiment.log_metric(
-                        f"novelty detection val accuracy per exposure class {seen_classes[sc_i]}", 
-                        best_exposure_classwise_acc[sc_i], 
-                        step=i+1
-                    )
-                else:
-                    experiment.log_metric(
-                        f"novelty detection val accuracy per exposure pseudo class {seen_classes[sc_i]}", 
-                        best_exposure_classwise_acc[sc_i], 
-                        step=i+1
-                    )
-            
-            novelty_detected, max_drop_class, num_drop_class = novelty_detector(
-                best_prev_classwise_acc, best_exposure_classwise_acc, seen_classes, hyperparams['threshold'])
-
-            print('Novelty Detected ' + ['Incorrect', 'Correct'][int(novelty_detected == true_novelty)])
-            print('Seen Class Detected ' + ['Incorrect', 'Correct'][int(max_drop_class == true_max_drop_class)])
-            print('Drop Class Num ' + ['Incorrect', 'Correct'][int(num_drop_class == true_num_drop_class)])
-
-            print("Novelty:", true_novelty, "  Novelty Detected:", novelty_detected)
-            print("Seen Class:", true_max_drop_class, "  Seen Class Detected:", max_drop_class)
-            print("Drop Class Num :", true_num_drop_class, "  Drop Class Num Detected:", num_drop_class)
-
-            if novelty_detected == True:
-                print('New Class Retrain')
-                inferred_label = new_tr.pseudo_label
-                
-            else:
-                print('Old Class Retrain')
-                inferred_label = max_drop_class
-
-            new_tr = ReplayExposureBlender(prev_tr, exposure_tr, seen_classes, label=inferred_label)
-            new_val = ReplayExposureBlender(prev_val, exposure_val, seen_classes, label=inferred_label)
-
-            new_tr_loader = DataLoader(new_tr, batch_size=hyperparams['batch_size'], shuffle=True, num_workers=4)
-            new_val_loader = DataLoader(
-                new_val, batch_size=hyperparams['batch_size'], shuffle=True, num_workers=4)
-
-            best_retrain_acc = -9999
-            best_retrain_classwise_acc = []
-            since_best = 0
-            since_reduce = 0
-
-            loss_counter = 0
-
-            if i == 0:
-                model.load_state_dict(
-                    torch.load(os.path.join('ckpts', 
-                            experiment_name,
-                            'pretrain', 
-                            hyperparams['model']
-                            +'_'.join(map(str, seen_classes))
-                            +'_'+str(best_pretrain_acc)+'.pt')
-                    )
-                )
-
-            else:
-                model.load_state_dict(
-                    torch.load(os.path.join('ckpts', 
-                            experiment_name,
-                            'exposure' + str(i - 1), 
-                            hyperparams['model']
-                            +'_'.join(map(str, seen_classes))
-                            +'_'+str(best_prev_acc)+'.pt')
-                    )
-                )
-
-            optimizer = torch.optim.Adam(model.parameters(), lr=hyperparams['lr'])
-            scheduler = torch.optim.lr_scheduler.MultiplicativeLR(optimizer, lr_lambda=lmbda)
-
-            for epoch in tqdm(range(hyperparams['num_epochs']), desc='Epoch'):
-                model.train()
-                for x, y in tqdm(new_tr_loader, desc='Training'):
-                    x, y = x.to(device), y.to(device)
-                    yhat = model(x)
-                    loss = criterion(yhat, y)
-                    train_loss_list.append(loss.item())
-                    loss_counter += 1
-
-                    optimizer.zero_grad()
-                    loss.backward()
-                    optimizer.step()
-
-                predictions = []
-                truths = []
-                
-                model.eval()
-                with torch.no_grad():
-                    for x, y in tqdm(new_val_loader, desc='Validating'):
-                        x, y = x.to(device), y.to(device)
-                        yhat = torch.argmax(model(x), 1)
-                        truths.extend(y.tolist())
-                        predictions.extend(yhat.tolist())
-        
-                if inferred_label not in seen_classes:
-                    seen_classes = seen_classes + [inferred_label]
-                    true_seen_classes = true_seen_classes + [label]
-
-                acc, classwise_acc = classwise_accuracy(np.array(predictions).flatten(),
-                                                    np.array(truths).flatten(),
-                                                    11,
-                                                    seen_classes
-                                                    )
-
-                print()
-                print('Accuracy: ', acc)
-                for sc_i in range(len(seen_classes)):
-                    print(f'Class {seen_classes[sc_i]} accuracy: {classwise_acc[sc_i]}') 
-                    if seen_classes[sc_i] in initial_seen_classes:   
-                        experiment.log_metric(
-                            f"training val accuracy per epoch class {seen_classes[sc_i]}", 
-                            classwise_acc[sc_i], 
-                            step=hyperparams['num_epochs_initial']+i*hyperparams['num_epochs']+epoch
-                        )
-                    else:
-                        experiment.log_metric(
-                            f"training val accuracy per epoch pseudo class {seen_classes[sc_i]}", 
-                            classwise_acc[sc_i], 
-                            step=hyperparams['num_epochs_initial']+i*hyperparams['num_epochs']+epoch
-                        )
+        for sc_i in range(len(seen_classes)):    
+            if seen_classes[sc_i] in initial_seen_classes:   
                 experiment.log_metric(
-                    "total training val accuracy per epoch", 
-                    acc,
-                    step=hyperparams['num_epochs_initial']+i*hyperparams['num_epochs']+epoch
+                    f"novelty detection val accuracy per exposure class {seen_classes[sc_i]}", 
+                    best_exposure_classwise_acc[sc_i], 
+                    step=i+1
                 )
+            else:
+                experiment.log_metric(
+                    f"novelty detection val accuracy per exposure pseudo class {seen_classes[sc_i]}", 
+                    best_exposure_classwise_acc[sc_i], 
+                    step=i+1
+                )
+            
+        novelty_detected, max_drop_class, num_drop_class = novelty_detector(
+            best_prev_classwise_acc, best_exposure_classwise_acc, seen_classes, hyperparams['threshold'])
 
-                if acc > best_retrain_acc:
-                    since_best = 0
-                    since_reduce = 0
-                    best_retrain_acc = acc
-                    best_retrain_classwise_acc = classwise_acc
-                    torch.save(model.state_dict(), 
-                        (os.path.join('ckpts',
-                        experiment_name, 
-                        'exposure' + str(i), 
+        print('Novelty Detected ' + ['Incorrect', 'Correct'][int(novelty_detected == true_novelty)])
+        print('Seen Class Detected ' + ['Incorrect', 'Correct'][int(max_drop_class == true_max_drop_class)])
+        print('Drop Class Num ' + ['Incorrect', 'Correct'][int(num_drop_class == true_num_drop_class)])
+
+        print("Novelty:", true_novelty, "  Novelty Detected:", novelty_detected)
+        print("Seen Class:", true_max_drop_class, "  Seen Class Detected:", max_drop_class)
+        print("Drop Class Num :", true_num_drop_class, "  Drop Class Num Detected:", num_drop_class)
+
+        if novelty_detected == True:
+            print('New Class Retrain')
+            inferred_label = new_tr.pseudo_label
+                
+        else:
+            print('Old Class Retrain')
+            inferred_label = max_drop_class
+
+        #####################################################################################
+        # incremental retrain
+            
+        new_tr = ReplayExposureBlender(prev_tr, exposure_tr, seen_classes, label=inferred_label)
+        new_val = ReplayExposureBlender(prev_val, exposure_val, seen_classes, label=inferred_label)
+
+        new_tr_loader = DataLoader(new_tr, batch_size=hyperparams['batch_size'], shuffle=True, num_workers=4)
+        new_val_loader = DataLoader(
+            new_val, batch_size=hyperparams['batch_size'], shuffle=True, num_workers=4)
+
+        best_retrain_acc = -9999
+        best_retrain_classwise_acc = []
+        since_best = 0
+        since_reduce = 0
+
+        loss_counter = 0
+
+        if i == 0:
+            model.load_state_dict(
+                torch.load(os.path.join('ckpts', 
+                        experiment_name,
+                        'pretrain', 
                         hyperparams['model']
                         +'_'.join(map(str, seen_classes))
-                        +'_'+str(best_retrain_acc))+'.pt')
-                    )
-
-                else:
-                    since_reduce += 1
-                    since_best += 1
-                    if hyperparams['early_stop']:
-                        if since_best == hyperparams['early_stop_wait']:
-                            print('Early Stop!')
-                            break
-                    if since_reduce == hyperparams['reduce_lr_wait']:
-                        since_reduce = 0
-                        scheduler.step()
-                        print('Learning rate reduced to', optimizer.param_groups[0]["lr"])
-
-            print('Prev Acc:', best_prev_classwise_acc)
-            print('Retrain Acc:', best_retrain_classwise_acc)
-            
-            best_prev_classwise_acc = best_retrain_classwise_acc
-            best_prev_acc = best_retrain_acc
-            
-            for sc_i in range(len(seen_classes)):
-                if seen_classes[sc_i] in initial_seen_classes: 
-                    experiment.log_metric(
-                        f"training val accuracy per exposure class {seen_classes[sc_i]}", 
-                        best_retrain_classwise_acc[sc_i], 
-                        step=i+1
-                    )
-                else:
-                    experiment.log_metric(
-                        f"training val accuracy per exposure pseudo class {seen_classes[sc_i]}", 
-                        best_retrain_classwise_acc[sc_i],
-                        step=i+1
-                    )
-            experiment.log_metric(
-                "total training val accuracy per exposure", 
-                best_retrain_acc,
-                step=i+1
+                        +'_'+str(best_pretrain_acc)+'.pt')
+                )
             )
 
-            prev_tr.update(exposure_tr, inferred_label)
-            prev_val.update(exposure_val, inferred_label)
+        else:
+            model.load_state_dict(
+                torch.load(os.path.join('ckpts', 
+                        experiment_name,
+                        'exposure' + str(i - 1), 
+                        hyperparams['model']
+                        +'_'.join(map(str, seen_classes))
+                        +'_'+str(best_prev_acc)+'.pt')
+                )
+            )
+
+        optimizer = torch.optim.Adam(model.parameters(), lr=hyperparams['lr'])
+        scheduler = torch.optim.lr_scheduler.MultiplicativeLR(optimizer, lr_lambda=lmbda)
+
+        for epoch in tqdm(range(hyperparams['num_epochs']), desc='Epoch'):
+            model.train()
+            for x, y in tqdm(new_tr_loader, desc='Training'):
+                x, y = x.to(device), y.to(device)
+                yhat = model(x)
+                loss = criterion(yhat, y)
+                train_loss_list.append(loss.item())
+                loss_counter += 1
+
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+            predictions = []
+            truths = []
+                
+            model.eval()
+            with torch.no_grad():
+                for x, y in tqdm(new_val_loader, desc='Validating'):
+                    x, y = x.to(device), y.to(device)
+                    yhat = torch.argmax(model(x), 1)
+                    truths.extend(y.tolist())
+                    predictions.extend(yhat.tolist())
+        
+            if inferred_label not in seen_classes:
+                seen_classes = seen_classes + [inferred_label]
+                true_seen_classes = true_seen_classes + [label]
+
+            acc, classwise_acc = classwise_accuracy(np.array(predictions).flatten(),
+                                                np.array(truths).flatten(),
+                                                11,
+                                                seen_classes
+                                                )
+
+            print()
+            print('Accuracy: ', acc)
+            for sc_i in range(len(seen_classes)):
+                print(f'Class {seen_classes[sc_i]} accuracy: {classwise_acc[sc_i]}') 
+                if seen_classes[sc_i] in initial_seen_classes:   
+                    experiment.log_metric(
+                        f"training val accuracy per epoch class {seen_classes[sc_i]}", 
+                        classwise_acc[sc_i], 
+                        step=hyperparams['num_epochs_initial']+i*hyperparams['num_epochs']+epoch
+                    )
+                else:
+                    experiment.log_metric(
+                        f"training val accuracy per epoch pseudo class {seen_classes[sc_i]}", 
+                        classwise_acc[sc_i], 
+                        step=hyperparams['num_epochs_initial']+i*hyperparams['num_epochs']+epoch
+                    )
+            experiment.log_metric(
+                "total training val accuracy per epoch", 
+                acc,
+                step=hyperparams['num_epochs_initial']+i*hyperparams['num_epochs']+epoch
+            )
+
+            if acc > best_retrain_acc:
+                since_best = 0
+                since_reduce = 0
+                best_retrain_acc = acc
+                best_retrain_classwise_acc = classwise_acc
+                torch.save(model.state_dict(), 
+                    (os.path.join('ckpts',
+                    experiment_name, 
+                    'exposure' + str(i), 
+                    hyperparams['model']
+                    +'_'.join(map(str, seen_classes))
+                    +'_'+str(best_retrain_acc))+'.pt')
+                )
+
+            else:
+                since_reduce += 1
+                since_best += 1
+                if hyperparams['early_stop']:
+                    if since_best == hyperparams['early_stop_wait']:
+                        print('Early Stop!')
+                        break
+                if since_reduce == hyperparams['reduce_lr_wait']:
+                    since_reduce = 0
+                    scheduler.step()
+                    print('Learning rate reduced to', optimizer.param_groups[0]["lr"])
+
+        print('Prev Acc:', best_prev_classwise_acc)
+        print('Retrain Acc:', best_retrain_classwise_acc)
+            
+        best_prev_classwise_acc = best_retrain_classwise_acc
+        best_prev_acc = best_retrain_acc
+            
+        for sc_i in range(len(seen_classes)):
+            if seen_classes[sc_i] in initial_seen_classes: 
+                experiment.log_metric(
+                    f"training val accuracy per exposure class {seen_classes[sc_i]}", 
+                    best_retrain_classwise_acc[sc_i], 
+                    step=i+1
+                )
+            else:
+                experiment.log_metric(
+                    f"training val accuracy per exposure pseudo class {seen_classes[sc_i]}", 
+                    best_retrain_classwise_acc[sc_i],
+                    step=i+1
+                )
+        experiment.log_metric(
+            "total training val accuracy per exposure", 
+            best_retrain_acc,
+            step=i+1
+        )
+
+        prev_tr.update(exposure_tr, inferred_label)
+        prev_val.update(exposure_val, inferred_label)
                 
 
     print('True labels:', true_seen_classes)
