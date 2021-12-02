@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from torchvision.transforms import ToTensor
 from torch.utils.data import DataLoader
+from datetime import date
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
@@ -50,9 +51,14 @@ if __name__ == '__main__':
             exposure_val_size=hyperparams['exposure_val_size'], 
             initial_K=hyperparams['initial_K']
         )
-        # torch.save(exposure_generator, 'saved_generators/UrbanSoundExGenerator.pt')
-        exposure_generator = torch.load('saved_generators/UrbanSoundExGenerator.pt')
-        
+        today = date.today()
+        torch.save(exposure_generator, f'saved_generators/UrbanSoundExGenerator{today}.pt')
+        # exposure_generator = torch.load('saved_generators/UrbanSoundExGenerator1126.pt')
+        # exposure_generator.initial_K = 2
+        # exposure_generator.initial_classes = \
+        # exposure_generator.initial_classes[:2]
+
+
     elif cfg['dataset'] == 'TAU':
         exposure_generator = TAUExposureGenerator(
             cfg['dataset_path'], 
@@ -62,7 +68,13 @@ if __name__ == '__main__':
             exposure_val_size=hyperparams['exposure_val_size'], 
             initial_K=hyperparams['initial_K']
         )
+        today = date.today()
+        torch.save(exposure_generator, f'saved_generators/TAUExGenerator{today}.pt')
+        # exposure_generator = torch.load('saved_generators/TAUExGenerator_1_9_2_5.pt')
         TAU_test = exposure_generator.get_test_set()
+        
+    print(exposure_generator.initial_classes)
+    print(exposure_generator.exposure_remain_idx)
         
     initial_tr, initial_val, seen_classes = exposure_generator.get_initial_set()
     experiment.log_parameters({'inital_classes': seen_classes})
@@ -396,7 +408,7 @@ if __name__ == '__main__':
         print('Novelty Detected ' + ['Incorrect', 'Correct'][int(novelty_detected == true_novelty)])
         print('Seen Class Detected ' + ['Incorrect', 'Correct'][int(max_drop_class == true_max_drop_class)])
         print('Drop Class Num ' + ['Incorrect', 'Correct'][int(num_drop_class == true_num_drop_class)])
-
+        
         print("Novelty:", true_novelty, "  Novelty Detected:", novelty_detected)
         print("Seen Class:", true_max_drop_class, "  Seen Class Detected:", max_drop_class)
         print("Drop Class Num :", true_num_drop_class, "  Drop Class Num Detected:", num_drop_class)

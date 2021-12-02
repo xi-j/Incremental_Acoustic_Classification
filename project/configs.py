@@ -2,9 +2,9 @@ import time
 
 def xilin_config():
     cfg = {
-        'experiment_name' : 'xilin_incremental',
-        'dataset' : 'UrbanSound8K',
-        'dataset_path' : 'UrbanSound8K',
+        'experiment_name' : 'xilin_incremental_tau_in_1_9_2_5',
+        'dataset' : 'TAU',
+        'dataset_path' : '/mnt/data/DCASE2019/Task1/TAU-urban-acoustic-scenes-2019-development',
 
         'comet' : {
             'api_key' : 'kOAHVqhBnkw2R6FQr6b0uOemJ',
@@ -34,7 +34,7 @@ def xilin_config():
             'device' : 'cuda:3',
             'novelty_detector' : 'confusion',
             'imbalance_ratio' : 0.20,
-            'threshold' : 0.4,
+            'threshold' : 0.8,
         }
 
     }
